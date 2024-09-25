@@ -8,6 +8,7 @@ from igelfs.constants import (
     DIR_MAX_MINORS,
     IGF_SECT_DATA_LEN,
     IGF_SECT_HDR_LEN,
+    HASH_HDR_IDENT,
     MAX_EXTENT_NUM,
     MAX_FRAGMENTS,
     SECTION_IMAGE_CRC_START,
@@ -277,7 +278,7 @@ class Section(BaseDataModel):
             self.data = data
         try:
             self.hash, data = HashHeader.from_bytes_with_remaining(self.data)
-            if self.hash.ident != "chksum":
+            if self.hash.ident != HASH_HDR_IDENT:
                 raise ValueError("Unexpected 'ident' for hash header")
             self.data = data
         except Exception:
@@ -287,6 +288,11 @@ class Section(BaseDataModel):
     def crc(self) -> int:
         """Return CRC32 checksum from header."""
         return self.header.crc
+
+    @property
+    def end_of_chain(self) -> bool:
+        """Return whether this section is the last in the chain."""
+        return self.header.next_section == 0xffffffff
 
 
 @dataclass
@@ -361,6 +367,12 @@ class Directory(BaseDataModel):
             if partition.minor == partition_minor:
                 return partition
         return None
+
+    def find_fragment_by_partition_minor(self, partition_minor: int) -> FragmentDescriptor | None:
+        """Return FragmentDescriptor from PartitionDescriptor with matching minor."""
+        if not (partition := self.find_partition_by_partition_minor(partition_minor)):
+            return None
+        return self.fragment[partition.first_fragment]
 
 
 @dataclass

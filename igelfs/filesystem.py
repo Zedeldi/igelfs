@@ -101,12 +101,24 @@ class Filesystem:
     def find_sections_by_partition_minor(
         self, partition_minor: int
     ) -> DataModelCollection[Section]:
-        """Return Sections with matching partition minor."""
+        """Return Sections with matching partition minor linearly."""
         return DataModelCollection(
             section
             for section in self.sections
             if section.header.partition_minor == partition_minor
         )
+
+    def find_sections_by_directory(
+        self, partition_minor: int
+    ) -> DataModelCollection[Section]:
+        """Return Sections with matching partition minor from directory."""
+        fragment = self.directory.find_fragment_by_partition_minor(partition_minor)
+        if not fragment:
+            return DataModelCollection()
+        sections = DataModelCollection([self[fragment.first_section]])
+        while not (section := sections[-1]).end_of_chain:
+            sections.append(self[section.header.next_section])
+        return sections
 
     def find_partition_by_hash(self, hash: bytes | str) -> PartitionHeader | None:
         """Return PartitionHeader for specified hash."""
