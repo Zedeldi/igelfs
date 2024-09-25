@@ -8,6 +8,7 @@ from igelfs.constants import (
     DIR_MAX_MINORS,
     IGF_SECT_DATA_LEN,
     IGF_SECT_HDR_LEN,
+    MAX_EXTENT_NUM,
     MAX_FRAGMENTS,
     SECTION_IMAGE_CRC_START,
 )
@@ -139,6 +140,53 @@ class PartitionHeader(BaseDataModel):
 
 
 @dataclass
+class PartitionExtent(BaseDataModel):
+    """Dataclass to handle partition extent data."""
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "type": 2,
+        "offset": 8,
+        "length": 8,
+        "name": 8,
+    }
+
+    type: int
+    offset: int
+    length: int
+    name: bytes  # optional character code
+
+
+@dataclass
+class PartitionExtents(BaseDataModel):
+    """Dataclass to handle partition extents."""
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "n_extents": 2,
+        "extent": MAX_EXTENT_NUM * PartitionExtent.get_model_size(),
+    }
+
+    n_extents: int
+    extent: DataModelCollection[PartitionExtent]
+
+
+@dataclass
+class PartitionExtentReadWrite(BaseDataModel):
+    """Dataclass to handle partition extent read/write data."""
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "ext_num": 1,
+        "pos": 8,
+        "size": 8,
+        "data": 1,
+    }
+
+    ext_num: int  # extent number where to read from
+    pos: int  # position inside extent to start reading from
+    size: int  # size of data (WARNING limited to EXTENT_MAX_READ_WRITE_SIZE)
+    data: int  # destination/src pointer for the data to
+
+
+@dataclass
 class FragmentDescriptor(BaseDataModel):
     """Dataclass to handle fragment descriptors."""
 
@@ -167,7 +215,11 @@ class PartitionDescriptor(BaseDataModel):
 
 @dataclass
 class Directory(BaseDataModel):
-    """Dataclass to handle directory header data."""
+    """
+    Dataclass to handle directory header data.
+
+    The directory resides in section #0 of the image.
+    """
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
         "magic": 4,
