@@ -269,7 +269,12 @@ class Section(BaseDataModel):
 
     def __post_init__(self) -> None:
         """Parse data into optional additional attributes."""
-        self.partition, self.data = PartitionHeader.from_bytes_with_remaining(self.data)
+        partition, data = PartitionHeader.from_bytes_with_remaining(self.data)
+        if partition.hdrlen != PartitionHeader.get_model_size():
+            self.partition = None
+        else:
+            self.partition = partition
+            self.data = data
         try:
             self.hash, data = HashHeader.from_bytes_with_remaining(self.data)
             if self.hash.ident != "chksum":
