@@ -29,7 +29,7 @@ class BaseDataModel(ABC):
                         fd.write(data)
                     case int():
                         size = self.get_attribute_size(field.name)
-                        fd.write(data.to_bytes(size))
+                        fd.write(data.to_bytes(size, byteorder="little"))
                     case str():
                         fd.write(data.encode())
                     case BaseDataModel() | DataModelCollection():
@@ -65,7 +65,9 @@ class BaseDataModel(ABC):
         if not getattr(self, "CRC_OFFSET"):
             raise NotImplementedError("Model has not implemented CRC32 method")
         return int.from_bytes(
-            zlib.crc32(self.to_bytes()[self.CRC_OFFSET :]).to_bytes(4, "little")
+            zlib.crc32(self.to_bytes()[self.CRC_OFFSET :]).to_bytes(
+                4, byteorder="little"
+            )
         )
 
     def verify(self) -> bool:
@@ -101,7 +103,7 @@ class BaseDataModel(ABC):
         elif field.type == str:
             return data.decode()
         elif field.type == int:
-            return int.from_bytes(data)
+            return int.from_bytes(data, byteorder="little")
         else:
             return field.type(data)
 

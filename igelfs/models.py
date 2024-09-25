@@ -93,9 +93,16 @@ class PartitionHeader(BaseDataModel):
     # A high level hash over almost all files, used to determine if an update is needed
     update_hash: bytes
 
+    def __post_init__(self) -> None:
+        """Handle model-specific data post-initialisation."""
+        self.type = int.from_bytes(
+            self.type.to_bytes(self.MODEL_ATTRIBUTE_SIZES["type"], byteorder="big"),
+            byteorder="little",
+        )
+
     def get_type(self) -> PartitionType:
         """Return PartitionType from PartitionHeader instance."""
-        return PartitionType(self.type & 0xff)
+        return PartitionType(self.type & 0xFF)
 
 
 @dataclass
@@ -262,12 +269,7 @@ class Section(BaseDataModel):
 
     def __post_init__(self) -> None:
         """Parse data into optional additional attributes."""
-        partition, data = PartitionHeader.from_bytes_with_remaining(self.data)
-        if partition.type != 1026:
-            self.partition = None
-        else:
-            self.partition = partition
-            self.data = data
+        self.partition, self.data = PartitionHeader.from_bytes_with_remaining(self.data)
         try:
             self.hash, data = HashHeader.from_bytes_with_remaining(self.data)
             if self.hash.ident != "chksum":
@@ -303,7 +305,7 @@ class PartitionDescriptor(BaseDataModel):
         "n_fragments": 2,
     }
 
-    minor: int  # a replication of igf_sect_hdr.partition
+    minor: int  # a replication of igf_sect_hdr.partition_minor
     type: int  # partition type, a replication of igf_part_hdr.type
     first_fragment: int  # index of the first fragment
     n_fragments: int  # number of additional fragments
@@ -343,6 +345,17 @@ class Directory(BaseDataModel):
     extension: bytes  # unspecified, for future extensions
     partition: DataModelCollection[PartitionDescriptor]
     fragment: DataModelCollection[FragmentDescriptor]
+
+    def find_partition_by_partition_minor(
+        self, partition_minor: int
+    ) -> PartitionDescriptor | None:
+        """Return PartitionDescriptor with matching partition minor."""
+        for partition in self.partition:
+            if partition.n_fragments == 0:
+                continue  # partition does not exist
+            if partition.minor == partition_minor:
+                return partition
+        return None
 
 
 @dataclass

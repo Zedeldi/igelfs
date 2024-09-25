@@ -4,6 +4,7 @@ import itertools
 from pathlib import Path
 from typing import Iterator
 
+from igelfs.base import DataModelCollection
 from igelfs.constants import (
     DIR_OFFSET,
     DIR_SIZE,
@@ -24,15 +25,15 @@ class Filesystem:
         """Initialise instance."""
         self.path = Path(path).absolute()
 
-    def __getitem__(self, index: int | slice) -> Section | list[Section]:
+    def __getitem__(self, index: int | slice) -> Section | DataModelCollection[Section]:
         """Implement getitem method."""
         if isinstance(index, slice):
-            return [
+            return DataModelCollection(
                 section
                 for section in itertools.islice(
                     self.sections, index.start, index.stop, index.step
                 )
-            ]
+            )
         return self.get_section_by_index(index)
 
     def __iter__(self) -> Iterator[Section]:
@@ -67,17 +68,17 @@ class Filesystem:
     @property
     def bootreg(self) -> BootRegistryHeader:
         """Return Boot Registry Header for image."""
-        data = self.get_data(IGEL_BOOTREG_OFFSET, IGEL_BOOTREG_SIZE)
+        data = self.get_bytes(IGEL_BOOTREG_OFFSET, IGEL_BOOTREG_SIZE)
         return BootRegistryHeader.from_bytes(data)
 
     @property
     def directory(self) -> Directory:
         """Return Directory for image."""
-        data = self.get_data(DIR_OFFSET, DIR_SIZE)
+        data = self.get_bytes(DIR_OFFSET, DIR_SIZE)
         return Directory.from_bytes(data)
 
-    def get_data(self, offset: int = 0, size: int = -1):
-        """Return data for specified offset and size."""
+    def get_bytes(self, offset: int = 0, size: int = -1) -> bytes:
+        """Return bytes for specified offset and size."""
         if offset > self.size:
             raise ValueError("Offset is greater than image size")
         with open(self.path, "rb") as fd:
@@ -86,7 +87,7 @@ class Filesystem:
 
     def get_section_by_offset(self, offset: int, size: int) -> Section:
         """Return Section of image by offset and size."""
-        data = self.get_data(offset, size)
+        data = self.get_bytes(offset, size)
         return Section.from_bytes(data)
 
     def get_section_by_index(self, index: int) -> Section:
@@ -94,14 +95,24 @@ class Filesystem:
         if index > self.section_count:
             raise IndexError("Index is greater than section count")
         offset = get_start_of_section(index)
-        data = self.get_data(offset, IGF_SECTION_SIZE)
+        data = self.get_bytes(offset, IGF_SECTION_SIZE)
         return Section.from_bytes(data)
 
-    def get_partition_by_hash(self, hash: bytes | str) -> PartitionHeader | None:
+    def find_sections_by_partition_minor(
+        self, partition_minor: int
+    ) -> DataModelCollection[Section]:
+        """Return Sections with matching partition minor."""
+        return DataModelCollection(
+            section
+            for section in self.sections
+            if section.header.partition_minor == partition_minor
+        )
+
+    def find_partition_by_hash(self, hash: bytes | str) -> PartitionHeader | None:
         """Return PartitionHeader for specified hash."""
         if isinstance(hash, str):
             hash = bytes.fromhex(hash)
-        try:
-            return [partition for partition in self.partitions if partition.update_hash == hash][0]
-        except IndexError:
-            return None
+        for partition in self.partitions:
+            if partition.update_hash == hash:
+                return partition
+        return None
