@@ -1,8 +1,10 @@
 """Abstract base classes for various data models."""
 
 import io
+import zlib
 from abc import ABC
 from dataclasses import dataclass, fields
+from pathlib import Path
 from typing import ClassVar, get_args, get_origin
 
 
@@ -11,6 +13,7 @@ class BaseDataModel(ABC):
     """Abstract base class for data model."""
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]]
+    CRC_OFFSET: ClassVar[int]
 
     def __len__(self) -> int:
         """Implement __len__ data model method."""
@@ -33,6 +36,13 @@ class BaseDataModel(ABC):
             fd.seek(0)
             return fd.read()
 
+    def write(self, path: str | Path) -> Path:
+        """Write data of model to specified path and return Path object."""
+        path = Path(path).absolute()
+        with open(path, "wb") as fd:
+            fd.write(self.to_bytes())
+        return path
+
     @property
     def size(self) -> int:
         """Return actual size of all data."""
@@ -43,9 +53,20 @@ class BaseDataModel(ABC):
         """Return expected total size of data for model."""
         return sum(cls.MODEL_ATTRIBUTE_SIZES.values())
 
+    def get_crc(self) -> int:
+        """Calculate CRC32 of section."""
+        if not getattr(self, "CRC_OFFSET"):
+            raise NotImplementedError("Model has not implemented CRC32 method.")
+        return int.from_bytes(
+            zlib.crc32(self.to_bytes()[self.CRC_OFFSET :]).to_bytes(4, "little")
+        )
+
     def verify(self) -> bool:
         """Verify data model integrity."""
-        return self.size == self.get_model_size()
+        try:
+            return self.crc == self.get_crc()
+        except AttributeError:
+            return self.size == self.get_model_size()
 
     @classmethod
     def from_bytes_to_dict(cls, data: bytes) -> dict[str, bytes]:
@@ -72,6 +93,8 @@ class BaseDataModel(ABC):
                         )
                     ]
                 )
+            elif issubclass(field.type, BaseDataModel):
+                model[field.name] = field.type.from_bytes(model[field.name])
             elif field.type == str:
                 model[field.name] = model[field.name].decode()
             elif field.type == int:

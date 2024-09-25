@@ -83,6 +83,7 @@ def get_offset_of(x: int) -> int:
 
 IGF_SECT_HDR_LEN = 32
 IGF_SECT_DATA_LEN = IGF_SECTION_SIZE - IGF_SECT_HDR_LEN
+SECTION_IMAGE_CRC_START = 4  # sizeof(uint32_t)
 
 IGF_MAX_MINORS = 256
 

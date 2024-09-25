@@ -1,6 +1,5 @@
 """Python implementation to handle IGEL filesystems."""
 
-from dataclasses import dataclass
 from pathlib import Path
 
 from igelfs.constants import (
@@ -8,51 +7,11 @@ from igelfs.constants import (
     DIR_SIZE,
     IGEL_BOOTREG_OFFSET,
     IGEL_BOOTREG_SIZE,
-    IGF_SECT_DATA_LEN,
-    IGF_SECT_HDR_LEN,
     IGF_SECTION_SIZE,
     SectionSize,
-    get_section_of,
     get_start_of_section,
 )
-from igelfs.models import BootRegistryHeader, Directory, SectionHeader
-
-
-@dataclass
-class Section:
-    """Dataclass to handle section of an image."""
-
-    path: str | Path
-    offset: int
-    data: bytes
-    index: int | None = None
-
-    def __post_init__(self) -> None:
-        """Handle post-initialisation of dataclass instance."""
-        if self.index is None:
-            self.index = get_section_of(self.offset)
-
-    @property
-    def size(self) -> int:
-        """Return size of data."""
-        return len(self.data)
-
-    @property
-    def header(self) -> bytes:
-        """Return header of data."""
-        return SectionHeader.from_bytes(self.data[:IGF_SECT_HDR_LEN])
-
-    @property
-    def payload(self) -> bytes:
-        """Return header of data."""
-        return self.data[IGF_SECT_HDR_LEN:IGF_SECT_DATA_LEN]
-
-    def write(self, path: str | Path) -> Path:
-        """Write data of section to specified path and return Path."""
-        path = Path(path).absolute()
-        with open(path, "wb") as fd:
-            fd.write(self.data)
-        return path
+from igelfs.models import BootRegistryHeader, Directory, Section
 
 
 class Filesystem:
@@ -78,29 +37,31 @@ class Filesystem:
 
     @property
     def bootreg(self) -> BootRegistryHeader:
-        """Return bootreg Section for image."""
+        """Return Boot Registry Header for image."""
         data = self.get_data(IGEL_BOOTREG_OFFSET, IGEL_BOOTREG_SIZE)
         return BootRegistryHeader.from_bytes(data)
 
     @property
     def directory(self) -> Directory:
-        """Return directory Section for image."""
+        """Return Directory for image."""
         data = self.get_data(DIR_OFFSET, DIR_SIZE)
         return Directory.from_bytes(data)
 
     def get_data(self, offset: int = 0, size: int = -1):
         """Return data for specified offset and size."""
+        if offset > self.size:
+            raise ValueError("Offset is greater than image size.")
         with open(self.path, "rb") as fd:
             fd.seek(offset)
             return fd.read(size)
 
     def get_section_by_offset(self, offset: int, size: int) -> Section:
-        """Return section of image by offset and size."""
+        """Return Section of image by offset and size."""
         data = self.get_data(offset, size)
-        return Section(path=self.path, offset=offset, data=data)
+        return Section.from_bytes(data)
 
     def get_section_by_index(self, index: int) -> Section:
-        """Return section of image by index."""
+        """Return Section of image by index."""
         offset = get_start_of_section(index)
         data = self.get_data(offset, IGF_SECTION_SIZE)
-        return Section(path=self.path, index=index, offset=offset, data=data)
+        return Section.from_bytes(data)

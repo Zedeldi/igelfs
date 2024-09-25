@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from igelfs.base import BaseDataModel, DataModelCollection
-from igelfs.constants import DIR_MAX_MINORS, MAX_FRAGMENTS
+from igelfs.constants import (
+    DIR_MAX_MINORS,
+    IGF_SECT_DATA_LEN,
+    IGF_SECT_HDR_LEN,
+    MAX_FRAGMENTS,
+    SECTION_IMAGE_CRC_START,
+)
 
 
 @dataclass
@@ -19,7 +25,11 @@ class BootRegistryEntry(BaseDataModel):
 
 @dataclass
 class BootRegistryHeader(BaseDataModel):
-    """Dataclass to handle boot registry header data."""
+    """
+    Dataclass to handle boot registry header data.
+
+    The boot registry resides in section #0 of the image.
+    """
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
         "ident_legacy": 17,
@@ -63,9 +73,10 @@ class SectionHeader(BaseDataModel):
         "generation": 2,
         "section_in_minor": 4,
         "next_section": 4,
+        "reserved": 6,
     }
 
-    crc: int  # crc of the rest of the section         */
+    crc: int  # crc of the rest of the section
     magic: int  # magic number (erase count long ago)
     section_type: int
     section_size: int  # log2((section size in bytes) / 65536)
@@ -73,6 +84,26 @@ class SectionHeader(BaseDataModel):
     generation: int  # update generation count
     section_in_minor: int  # n = 0,...,(number of sect.-1)
     next_section: int  # index of the next section or 0xffffffff = end of chain
+    reserved: bytes  # section header is 32 bytes but 6 bytes are unused
+
+
+@dataclass
+class Section(BaseDataModel):
+    """Dataclass to handle section of an image."""
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "header": IGF_SECT_HDR_LEN,
+        "data": IGF_SECT_DATA_LEN,
+    }
+    CRC_OFFSET = SECTION_IMAGE_CRC_START
+
+    header: SectionHeader
+    data: bytes
+
+    @property
+    def crc(self) -> int:
+        """Return CRC32 checksum from header."""
+        return self.header.crc
 
 
 @dataclass
@@ -151,6 +182,7 @@ class Directory(BaseDataModel):
         "partition": DIR_MAX_MINORS * PartitionDescriptor.get_model_size(),
         "fragment": MAX_FRAGMENTS * FragmentDescriptor.get_model_size(),
     }
+    CRC_OFFSET = 4 + 4
 
     magic: str  # DIRECTORY_MAGIC
     crc: int
