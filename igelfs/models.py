@@ -1,6 +1,6 @@
 """Data models for the IGEL filesystem."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 from igelfs.base import BaseDataModel, DataModelCollection
@@ -59,52 +59,6 @@ class BootRegistryHeader(BaseDataModel):
     dir: bytes  # directory bitmap (4 bits for each block -> key len)
     reserve: bytes  # placeholder
     entry: DataModelCollection[BootRegistryEntry]  # real data
-
-
-@dataclass
-class SectionHeader(BaseDataModel):
-    """Dataclass to handle section header data."""
-
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "crc": 4,
-        "magic": 4,
-        "section_type": 2,
-        "section_size": 2,
-        "partition_minor": 4,
-        "generation": 2,
-        "section_in_minor": 4,
-        "next_section": 4,
-        "reserved": 6,
-    }
-
-    crc: int  # crc of the rest of the section
-    magic: int  # magic number (erase count long ago)
-    section_type: int
-    section_size: int  # log2((section size in bytes) / 65536)
-    partition_minor: int  # partition number (driver minor number)
-    generation: int  # update generation count
-    section_in_minor: int  # n = 0,...,(number of sect.-1)
-    next_section: int  # index of the next section or 0xffffffff = end of chain
-    reserved: bytes  # section header is 32 bytes but 6 bytes are unused
-
-
-@dataclass
-class Section(BaseDataModel):
-    """Dataclass to handle section of an image."""
-
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "header": IGF_SECT_HDR_LEN,
-        "data": IGF_SECT_DATA_LEN,
-    }
-    CRC_OFFSET = SECTION_IMAGE_CRC_START
-
-    header: SectionHeader
-    data: bytes
-
-    @property
-    def crc(self) -> int:
-        """Return CRC32 checksum from header."""
-        return self.header.crc
 
 
 @dataclass
@@ -184,6 +138,140 @@ class PartitionExtentReadWrite(BaseDataModel):
     pos: int  # position inside extent to start reading from
     size: int  # size of data (WARNING limited to EXTENT_MAX_READ_WRITE_SIZE)
     data: int  # destination/src pointer for the data to
+
+
+@dataclass
+class HashExclude(BaseDataModel):
+    """
+    Dataclass to handle hash exclude data.
+
+    Used to mark areas which should be excluded from hashing.
+    The start, end and size are based on absolute addresses not relative
+    to section or partition headers.
+    """
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "start": 8,
+        "size": 4,
+        "repeat": 4,
+        "end": 8,
+    }
+
+    start: int  # start of area to exclude
+    size: int  # size of area to exclude
+    repeat: int  # repeat after ... bytes if 0 -> no repeat
+    end: int  # end address where the exclude area end (only used if repeat is defined)
+
+
+@dataclass
+class HashHeader(BaseDataModel):
+    """Dataclass to handle hash header data."""
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "ident": 6,
+        "version": 2,
+        "signature": 512,
+        "count_hash": 8,
+        "signature_algo": 1,
+        "hash_algo": 1,
+        "hash_bytes": 2,
+        "blocksize": 4,
+        "hash_header_size": 4,
+        "hash_block_size": 4,
+        "count_excludes": 2,
+        "excludes_size": 2,
+        "offset_hash": 4,
+        "offset_hash_excludes": 4,
+        "reserved": 4,
+    }
+
+    ident: str  # Ident string "chksum"
+    # version number of header probably use with flags
+    # something like version = version & 0xff; if (version |= FLAG ...)
+    version: int
+    signature: bytes  # 512 Bytes -> 4096bit signature length
+    count_hash: int  # count of hash values
+    signature_algo: (
+        int  # Used signature algo (which is a define like HASH_SIGNATURE_TYPE_NONE)
+    )
+    hash_algo: int  # Used hash algo (which is a define like HASH_ALGO_TYPE_NONE)
+    hash_bytes: int  # bytes used for hash sha256 -> 32bytes, sha512 -> 64bytes
+    blocksize: int  # size of data used for hashing
+    hash_header_size: int  # size of the hash_header (with hash excludes)
+    hash_block_size: int  # size of the hash values block
+    count_excludes: int  # count of struct igel_hash_exclude variables
+    excludes_size: int  # size of struct igel_hash_exclude variables in Bytes
+    offset_hash: int  # offset of hash block from section header in bytes
+    offset_hash_excludes: (
+        int  # offset of hash_excludes block from start of igel_hash_header in bytes
+    )
+    reserved: bytes  # reserved for further use/padding for excludes alignment
+
+
+@dataclass
+class SectionHeader(BaseDataModel):
+    """Dataclass to handle section header data."""
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "crc": 4,
+        "magic": 4,
+        "section_type": 2,
+        "section_size": 2,
+        "partition_minor": 4,
+        "generation": 2,
+        "section_in_minor": 4,
+        "next_section": 4,
+        "reserved": 6,
+    }
+
+    crc: int  # crc of the rest of the section
+    magic: int  # magic number (erase count long ago)
+    section_type: int
+    section_size: int  # log2((section size in bytes) / 65536)
+    partition_minor: int  # partition number (driver minor number)
+    generation: int  # update generation count
+    section_in_minor: int  # n = 0,...,(number of sect.-1)
+    next_section: int  # index of the next section or 0xffffffff = end of chain
+    reserved: bytes  # section header is 32 bytes but 6 bytes are unused
+
+
+@dataclass
+class Section(BaseDataModel):
+    """
+    Dataclass to handle section of an image.
+
+    Not all sections have a partition or hash header. Data is parsed
+    post-initialisation to add these attributes.
+    """
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "header": IGF_SECT_HDR_LEN,
+        "data": IGF_SECT_DATA_LEN
+    }
+    CRC_OFFSET = SECTION_IMAGE_CRC_START
+
+    header: SectionHeader
+    partition: PartitionHeader | None = field(init=False)
+    hash: HashHeader | None = field(init=False)
+    data: bytes
+
+    def __post_init__(self) -> None:
+        """Parse data into optional additional attributes."""
+        partition, data = PartitionHeader.from_bytes_with_remaining(self.data)
+        if partition.type != 1026:
+            self.partition = None
+        else:
+            self.partition = partition
+            self.data = data
+        try:
+            self.hash, self.data = HashHeader.from_bytes_with_remaining(self.data)
+        except Exception:
+            self.hash = None
+
+    @property
+    def crc(self) -> int:
+        """Return CRC32 checksum from header."""
+        return self.header.crc
 
 
 @dataclass
@@ -272,71 +360,3 @@ class Bootsplash(BaseDataModel):
     offset: int
     length: int
     ident: bytes
-
-
-@dataclass
-class HashExclude(BaseDataModel):
-    """
-    Dataclass to handle hash exclude data.
-
-    Used to mark areas which should be excluded from hashing.
-    The start, end and size are based on absolute addresses not relative
-    to section or partition headers.
-    """
-
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "start": 8,
-        "size": 4,
-        "repeat": 4,
-        "end": 8,
-    }
-
-    start: int  # start of area to exclude
-    size: int  # size of area to exclude
-    repeat: int  # repeat after ... bytes if 0 -> no repeat
-    end: int  # end address where the exclude area end (only used if repeat is defined)
-
-
-@dataclass
-class HashHeader(BaseDataModel):
-    """Dataclass to handle hash header data."""
-
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "ident": 6,
-        "version": 2,
-        "signature": 512,
-        "count_hash": 8,
-        "signature_algo": 1,
-        "hash_algo": 1,
-        "hash_bytes": 2,
-        "blocksize": 4,
-        "hash_header_size": 4,
-        "hash_block_size": 4,
-        "count_excludes": 2,
-        "excludes_size": 2,
-        "offset_hash": 4,
-        "offset_hash_excludes": 4,
-        "reserved": 4,
-    }
-
-    ident: bytes  # Ident string "chksum"
-    # version number of header probably use with flags
-    # something like version = version & 0xff; if (version |= FLAG ...)
-    version: int
-    signature: bytes  # 512 Bytes -> 4096bit signature length
-    count_hash: int  # count of hash values
-    signature_algo: (
-        int  # Used signature algo (which is a define like HASH_SIGNATURE_TYPE_NONE)
-    )
-    hash_algo: int  # Used hash algo (which is a define like HASH_ALGO_TYPE_NONE)
-    hash_bytes: int  # bytes used for hash sha256 -> 32bytes, sha512 -> 64bytes
-    blocksize: int  # size of data used for hashing
-    hash_header_size: int  # size of the hash_header (with hash excludes)
-    hash_block_size: int  # size of the hash values block
-    count_excludes: int  # count of struct igel_hash_exclude variables
-    excludes_size: int  # size of struct igel_hash_exclude variables in Bytes
-    offset_hash: int  # offset of hash block from section header in bytes
-    offset_hash_excludes: (
-        int  # offset of hash_excludes block from start of igel_hash_header in bytes
-    )
-    reserved: bytes  # reserved for further use/padding for excludes alignment

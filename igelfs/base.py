@@ -5,7 +5,7 @@ import zlib
 from abc import ABC
 from dataclasses import Field, dataclass, fields
 from pathlib import Path
-from typing import Any, ClassVar, get_args, get_origin
+from typing import Any, ClassVar, Iterator, get_args, get_origin
 
 
 @dataclass
@@ -22,17 +22,20 @@ class BaseDataModel(ABC):
     def to_bytes(self) -> bytes:
         """Return bytes of all data."""
         with io.BytesIO() as fd:
-            for attribute, size in self.MODEL_ATTRIBUTE_SIZES.items():
-                data = getattr(self, attribute)
+            for field in self.fields(init_only=False):
+                data = getattr(self, field.name)
                 match data:
                     case bytes():
                         fd.write(data)
                     case int():
+                        size = self.get_attribute_size(field.name)
                         fd.write(data.to_bytes(size))
                     case str():
                         fd.write(data.encode())
                     case BaseDataModel() | DataModelCollection():
                         fd.write(data.to_bytes())
+                    case _:
+                        continue
             fd.seek(0)
             return fd.read()
 
@@ -51,6 +54,11 @@ class BaseDataModel(ABC):
     def get_model_size(cls: type["BaseDataModel"]) -> int:
         """Return expected total size of data for model."""
         return sum(cls.MODEL_ATTRIBUTE_SIZES.values())
+
+    @classmethod
+    def get_attribute_size(cls: type["BaseDataModel"], name: str) -> int:
+        """Return size of data for attribute."""
+        return cls.MODEL_ATTRIBUTE_SIZES[name]
 
     def get_crc(self) -> int:
         """Calculate CRC32 of section."""
@@ -72,8 +80,8 @@ class BaseDataModel(ABC):
         """Return dictionary from bytes."""
         model = {}
         with io.BytesIO(data) as fd:
-            for attribute, size in cls.MODEL_ATTRIBUTE_SIZES.items():
-                model[attribute] = fd.read(size)
+            for field in cls.fields(init_only=True):
+                model[field.name] = fd.read(cls.get_attribute_size(field.name))
         return model
 
     @staticmethod
@@ -101,9 +109,26 @@ class BaseDataModel(ABC):
     def from_bytes(cls: type["BaseDataModel"], data: bytes) -> "BaseDataModel":
         """Return data model instance from bytes."""
         model = cls.from_bytes_to_dict(data)
-        for field in fields(cls):
+        for field in cls.fields(init_only=True):
             model[field.name] = cls.from_field(model[field.name], field)
         return cls(**model)
+
+    @classmethod
+    def from_bytes_with_remaining(cls: type["BaseDataModel"], data: bytes) -> tuple["BaseDataModel", bytes]:
+        """Return data model instance and remaining data from bytes."""
+        return (cls.from_bytes(data), data[cls.get_model_size():])
+
+    @classmethod
+    def fields(cls: type["BaseDataModel"], init_only: bool = True) -> Iterator[Field]:
+        """
+        Return iterator of fields for dataclass.
+
+        If init_only, only include fields with parameters in __init__ method.
+        """
+        for field in fields(cls):
+            if init_only and not field.init:
+                continue
+            yield field
 
 
 class DataModelCollection(list):
