@@ -17,7 +17,7 @@ class BaseDataModel(ABC):
 
     def __len__(self) -> int:
         """Implement __len__ data model method."""
-        return self.size
+        return self.get_actual_size()
 
     def to_bytes(self) -> bytes:
         """Return bytes of all data."""
@@ -43,8 +43,7 @@ class BaseDataModel(ABC):
             fd.write(self.to_bytes())
         return path
 
-    @property
-    def size(self) -> int:
+    def get_actual_size(self) -> int:
         """Return actual size of all data."""
         return len(self.to_bytes())
 
@@ -66,7 +65,7 @@ class BaseDataModel(ABC):
         try:
             return self.crc == self.get_crc()
         except AttributeError:
-            return self.size == self.get_model_size()
+            return self.get_actual_size() == self.get_model_size()
 
     @classmethod
     def from_bytes_to_dict(cls, data: bytes) -> dict[str, bytes]:
