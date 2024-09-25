@@ -246,7 +246,7 @@ class Section(BaseDataModel):
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
         "header": IGF_SECT_HDR_LEN,
-        "data": IGF_SECT_DATA_LEN
+        "data": IGF_SECT_DATA_LEN,
     }
     CRC_OFFSET = SECTION_IMAGE_CRC_START
 
@@ -264,7 +264,10 @@ class Section(BaseDataModel):
             self.partition = partition
             self.data = data
         try:
-            self.hash, self.data = HashHeader.from_bytes_with_remaining(self.data)
+            self.hash, data = HashHeader.from_bytes_with_remaining(self.data)
+            if self.hash.ident != "chksum":
+                raise ValueError("Unexpected 'ident' for hash header")
+            self.data = data
         except Exception:
             self.hash = None
 

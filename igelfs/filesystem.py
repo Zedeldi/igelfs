@@ -1,6 +1,8 @@
 """Python implementation to handle IGEL filesystems."""
 
+import itertools
 from pathlib import Path
+from typing import Iterator
 
 from igelfs.constants import (
     DIR_OFFSET,
@@ -22,9 +24,20 @@ class Filesystem:
         """Initialise instance."""
         self.path = Path(path).absolute()
 
-    def __getitem__(self, index: int) -> Section:
+    def __getitem__(self, index: int | slice) -> Section | list[Section]:
         """Implement getitem method."""
+        if isinstance(index, slice):
+            return [
+                section
+                for section in itertools.islice(
+                    self.sections, index.start, index.stop, index.step
+                )
+            ]
         return self.get_section_by_index(index)
+
+    def __iter__(self) -> Iterator[Section]:
+        """Implement iter to make image iterable through sections."""
+        yield from self.sections
 
     @property
     def size(self) -> int:
@@ -37,9 +50,14 @@ class Filesystem:
         return SectionSize.get(self.size)
 
     @property
-    def total_sections(self) -> int:
+    def section_count(self) -> int:
         """Return total number of sections of image."""
         return get_section_of(self.size)
+
+    @property
+    def sections(self) -> Iterator[Section]:
+        """Return collection of sections."""
+        return (self[index] for index in range(self.section_count + 1))
 
     @property
     def bootreg(self) -> BootRegistryHeader:
@@ -56,7 +74,7 @@ class Filesystem:
     def get_data(self, offset: int = 0, size: int = -1):
         """Return data for specified offset and size."""
         if offset > self.size:
-            raise ValueError("Offset is greater than image size.")
+            raise ValueError("Offset is greater than image size")
         with open(self.path, "rb") as fd:
             fd.seek(offset)
             return fd.read(size)
@@ -68,6 +86,8 @@ class Filesystem:
 
     def get_section_by_index(self, index: int) -> Section:
         """Return Section of image by index."""
+        if index > self.section_count:
+            raise IndexError("Index is greater than section count")
         offset = get_start_of_section(index)
         data = self.get_data(offset, IGF_SECTION_SIZE)
         return Section.from_bytes(data)

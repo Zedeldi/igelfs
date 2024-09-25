@@ -63,7 +63,7 @@ class BaseDataModel(ABC):
     def get_crc(self) -> int:
         """Calculate CRC32 of section."""
         if not getattr(self, "CRC_OFFSET"):
-            raise NotImplementedError("Model has not implemented CRC32 method.")
+            raise NotImplementedError("Model has not implemented CRC32 method")
         return int.from_bytes(
             zlib.crc32(self.to_bytes()[self.CRC_OFFSET :]).to_bytes(4, "little")
         )
@@ -114,9 +114,11 @@ class BaseDataModel(ABC):
         return cls(**model)
 
     @classmethod
-    def from_bytes_with_remaining(cls: type["BaseDataModel"], data: bytes) -> tuple["BaseDataModel", bytes]:
+    def from_bytes_with_remaining(
+        cls: type["BaseDataModel"], data: bytes
+    ) -> tuple["BaseDataModel", bytes]:
         """Return data model instance and remaining data from bytes."""
-        return (cls.from_bytes(data), data[cls.get_model_size():])
+        return (cls.from_bytes(data), data[cls.get_model_size() :])
 
     @classmethod
     def fields(cls: type["BaseDataModel"], init_only: bool = True) -> Iterator[Field]:
