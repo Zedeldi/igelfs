@@ -3,9 +3,9 @@
 import io
 import zlib
 from abc import ABC
-from dataclasses import dataclass, fields
+from dataclasses import Field, dataclass, fields
 from pathlib import Path
-from typing import ClassVar, get_args, get_origin
+from typing import Any, ClassVar, get_args, get_origin
 
 
 @dataclass
@@ -48,7 +48,7 @@ class BaseDataModel(ABC):
         return len(self.to_bytes())
 
     @classmethod
-    def get_model_size(cls) -> int:
+    def get_model_size(cls: type["BaseDataModel"]) -> int:
         """Return expected total size of data for model."""
         return sum(cls.MODEL_ATTRIBUTE_SIZES.values())
 
@@ -68,7 +68,7 @@ class BaseDataModel(ABC):
             return self.get_actual_size() == self.get_model_size()
 
     @classmethod
-    def from_bytes_to_dict(cls, data: bytes) -> dict[str, bytes]:
+    def from_bytes_to_dict(cls: type["BaseDataModel"], data: bytes) -> dict[str, bytes]:
         """Return dictionary from bytes."""
         model = {}
         with io.BytesIO(data) as fd:
@@ -76,30 +76,33 @@ class BaseDataModel(ABC):
                 model[attribute] = fd.read(size)
         return model
 
+    @staticmethod
+    def from_field(data: bytes, field: Field) -> Any:
+        """Return instance of field type from data."""
+        if get_origin(field.type) == DataModelCollection:
+            inner = get_args(field.type)[0]
+            return DataModelCollection(
+                inner.from_bytes(chunk)
+                for chunk in [
+                    data[i : i + inner.get_model_size()]
+                    for i in range(0, len(data), inner.get_model_size())
+                ]
+            )
+        elif issubclass(field.type, BaseDataModel):
+            return field.type.from_bytes(data)
+        elif field.type == str:
+            return data.decode()
+        elif field.type == int:
+            return int.from_bytes(data)
+        else:
+            return field.type(data)
+
     @classmethod
-    def from_bytes(cls, data: bytes) -> "BaseDataModel":
+    def from_bytes(cls: type["BaseDataModel"], data: bytes) -> "BaseDataModel":
         """Return data model instance from bytes."""
         model = cls.from_bytes_to_dict(data)
         for field in fields(cls):
-            if get_origin(field.type) == DataModelCollection:
-                inner = get_args(field.type)[0]
-                model[field.name] = DataModelCollection(
-                    inner.from_bytes(chunk)
-                    for chunk in [
-                        model[field.name][i : i + inner.get_model_size()]
-                        for i in range(
-                            0, len(model[field.name]), inner.get_model_size()
-                        )
-                    ]
-                )
-            elif issubclass(field.type, BaseDataModel):
-                model[field.name] = field.type.from_bytes(model[field.name])
-            elif field.type == str:
-                model[field.name] = model[field.name].decode()
-            elif field.type == int:
-                model[field.name] = int.from_bytes(model[field.name])
-            else:
-                model[field.name] = field.type(model[field.name])
+            model[field.name] = cls.from_field(model[field.name], field)
         return cls(**model)
 
 

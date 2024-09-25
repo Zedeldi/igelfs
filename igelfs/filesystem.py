@@ -9,6 +9,7 @@ from igelfs.constants import (
     IGEL_BOOTREG_SIZE,
     IGF_SECTION_SIZE,
     SectionSize,
+    get_section_of,
     get_start_of_section,
 )
 from igelfs.models import BootRegistryHeader, Directory, Section
@@ -34,6 +35,11 @@ class Filesystem:
     def section_size(self) -> SectionSize:
         """Return SectionSize for image."""
         return SectionSize.get(self.size)
+
+    @property
+    def total_sections(self) -> int:
+        """Return total number of sections of image."""
+        return get_section_of(self.size)
 
     @property
     def bootreg(self) -> BootRegistryHeader:

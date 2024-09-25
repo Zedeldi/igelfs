@@ -23,13 +23,39 @@ IGEL FS has the following layout:
     - Partition Payload
 """
 
-from igelfs.filesystem import Filesystem, Section
-from igelfs.models import BootRegistryHeader, Directory, PartitionHeader, SectionHeader
+from igelfs.filesystem import Filesystem
+from igelfs.models import (
+    BootRegistryEntry,
+    BootRegistryHeader,
+    Bootsplash,
+    BootsplashHeader,
+    Directory,
+    FragmentDescriptor,
+    HashExclude,
+    HashHeader,
+    PartitionDescriptor,
+    PartitionExtent,
+    PartitionExtentReadWrite,
+    PartitionExtents,
+    PartitionHeader,
+    Section,
+    SectionHeader,
+)
 
 __all__ = [
+    "BootRegistryEntry",
     "BootRegistryHeader",
+    "Bootsplash",
+    "BootsplashHeader",
     "Directory",
     "Filesystem",
+    "FragmentDescriptor",
+    "HashExclude",
+    "HashHeader",
+    "PartitionDescriptor",
+    "PartitionExtent",
+    "PartitionExtentReadWrite",
+    "PartitionExtents",
     "PartitionHeader",
     "Section",
     "SectionHeader",

@@ -18,7 +18,7 @@ class SectionSize(IntEnum):
     SECT_SIZE_16M = 8
 
     @classmethod
-    def get(cls, size: int) -> "SectionSize":
+    def get(cls: type["SectionSize"], size: int) -> "SectionSize":
         """Get SectionSize for specified size."""
         section_size = int(math.log2(size / 65536))
         return cls(section_size)
