@@ -11,6 +11,7 @@ from igelfs.constants import (
     MAX_EXTENT_NUM,
     MAX_FRAGMENTS,
     SECTION_IMAGE_CRC_START,
+    PartitionType,
 )
 
 
@@ -91,6 +92,10 @@ class PartitionHeader(BaseDataModel):
     name: bytes  # optional character code (for pdir)
     # A high level hash over almost all files, used to determine if an update is needed
     update_hash: bytes
+
+    def get_type(self) -> PartitionType:
+        """Return PartitionType from PartitionHeader instance."""
+        return PartitionType(self.type & 0xff)
 
 
 @dataclass

@@ -14,7 +14,7 @@ from igelfs.constants import (
     get_section_of,
     get_start_of_section,
 )
-from igelfs.models import BootRegistryHeader, Directory, Section
+from igelfs.models import BootRegistryHeader, Directory, PartitionHeader, Section
 
 
 class Filesystem:
@@ -56,8 +56,13 @@ class Filesystem:
 
     @property
     def sections(self) -> Iterator[Section]:
-        """Return collection of sections."""
+        """Return generator of sections."""
         return (self[index] for index in range(self.section_count + 1))
+
+    @property
+    def partitions(self) -> Iterator[PartitionHeader]:
+        """Return generator of partition headers."""
+        return (section.partition for section in self.sections if section.partition)
 
     @property
     def bootreg(self) -> BootRegistryHeader:
@@ -91,3 +96,12 @@ class Filesystem:
         offset = get_start_of_section(index)
         data = self.get_data(offset, IGF_SECTION_SIZE)
         return Section.from_bytes(data)
+
+    def get_partition_by_hash(self, hash: bytes | str) -> PartitionHeader | None:
+        """Return PartitionHeader for specified hash."""
+        if isinstance(hash, str):
+            hash = bytes.fromhex(hash)
+        try:
+            return [partition for partition in self.partitions if partition.update_hash == hash][0]
+        except IndexError:
+            return None
