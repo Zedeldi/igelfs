@@ -10,7 +10,8 @@ from igelfs.constants import (
     SECTION_IMAGE_CRC_START,
 )
 from igelfs.models.base import BaseDataModel
-from igelfs.models.hash import HashHeader
+from igelfs.models.collections import DataModelCollection
+from igelfs.models.hash import HashExclude, HashHeader
 from igelfs.models.partition import PartitionHeader
 
 
@@ -59,23 +60,32 @@ class Section(BaseDataModel):
     header: SectionHeader
     partition: PartitionHeader | None = field(init=False)
     hash: HashHeader | None = field(init=False)
+    hash_excludes: DataModelCollection[HashExclude] | None = field(init=False)
     data: bytes
 
     def __post_init__(self) -> None:
         """Parse data into optional additional attributes."""
+        # Partition header
         partition, data = PartitionHeader.from_bytes_with_remaining(self.data)
         if partition.hdrlen != PartitionHeader.get_model_size():
             self.partition = None
         else:
             self.partition = partition
             self.data = data
-        try:
+        # Hashing
+        try:  # Hash header
             self.hash, data = HashHeader.from_bytes_with_remaining(self.data)
             if self.hash.ident != HASH_HDR_IDENT:
                 raise ValueError("Unexpected 'ident' for hash header")
             self.data = data
         except Exception:
             self.hash = None
+            self.hash_excludes = None
+        else:  # Hash excludes
+            self.hash_excludes = DataModelCollection()
+            for _ in range(self.hash.count_excludes):
+                hash_exclude, self.data = HashExclude.from_bytes_with_remaining(self.data)
+                self.hash_excludes.append(hash_exclude)
 
     @property
     def crc(self) -> int:
