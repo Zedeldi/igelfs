@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 from igelfs.constants import (
-    HASH_HDR_IDENT,
     IGF_SECT_DATA_LEN,
     IGF_SECT_HDR_LEN,
     SECTION_IMAGE_CRC_START,
@@ -74,17 +73,16 @@ class Section(BaseDataModel):
             self.data = data
         # Hashing
         try:  # Hash header
-            self.hash, data = HashHeader.from_bytes_with_remaining(self.data)
-            if self.hash.ident != HASH_HDR_IDENT:
-                raise ValueError("Unexpected 'ident' for hash header")
-            self.data = data
-        except Exception:
+            self.hash, self.data = HashHeader.from_bytes_with_remaining(self.data)
+        except (UnicodeDecodeError, ValueError):
             self.hash = None
             self.hash_excludes = None
         else:  # Hash excludes
             self.hash_excludes = DataModelCollection()
             for _ in range(self.hash.count_excludes):
-                hash_exclude, self.data = HashExclude.from_bytes_with_remaining(self.data)
+                hash_exclude, self.data = HashExclude.from_bytes_with_remaining(
+                    self.data
+                )
                 self.hash_excludes.append(hash_exclude)
 
     @property

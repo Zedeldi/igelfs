@@ -62,7 +62,11 @@ class Filesystem:
     @property
     def sections(self) -> Iterator[Section]:
         """Return generator of sections."""
-        return (self[index] for index in range(self.section_count + 1))
+        for index in range(self.section_count + 1):
+            try:
+                yield self[index]
+            except ValueError:
+                return
 
     @property
     def partitions(self) -> Iterator[PartitionHeader]:

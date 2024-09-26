@@ -66,11 +66,7 @@ class BaseDataModel(ABC):
         """Calculate CRC32 of section."""
         if not getattr(self, "CRC_OFFSET"):
             raise NotImplementedError("Model has not implemented CRC32 method")
-        return int.from_bytes(
-            zlib.crc32(self.to_bytes()[self.CRC_OFFSET :]).to_bytes(
-                4, byteorder="little"
-            )
-        )
+        return zlib.crc32(self.to_bytes()[self.CRC_OFFSET :])
 
     def verify(self) -> bool:
         """Verify data model integrity."""
@@ -80,12 +76,29 @@ class BaseDataModel(ABC):
             return self.get_actual_size() == self.get_model_size()
 
     @classmethod
-    def from_bytes_to_dict(cls: type["BaseDataModel"], data: bytes) -> dict[str, bytes]:
-        """Return dictionary from bytes."""
+    def from_bytes_to_dict(
+        cls: type["BaseDataModel"], data: bytes, strict: bool = False
+    ) -> dict[str, bytes]:
+        """
+        Return dictionary from bytes.
+
+        Raises a ValueError if data is too short to create model.
+
+        If strict is True, raise ValueError if data length
+        does not meet model size.
+        """
+        if strict and len(data) < cls.get_model_size():
+            raise ValueError(
+                f"Length of data '{len(data)}' "
+                f"is shorter than model size '{cls.get_model_size()}'"
+            )
         model = {}
         with io.BytesIO(data) as fd:
             for field in cls.fields(init_only=True):
-                model[field.name] = fd.read(cls.get_attribute_size(field.name))
+                data = fd.read(cls.get_attribute_size(field.name))
+                if not data:
+                    raise ValueError(f"Not enough data for model '{cls.__name__}'")
+                model[field.name] = data
         return model
 
     @staticmethod

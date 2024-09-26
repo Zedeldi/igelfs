@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
+from igelfs.constants import HASH_HDR_IDENT
 from igelfs.models.base import BaseDataModel
 
 
@@ -72,3 +73,8 @@ class HashHeader(BaseDataModel):
         int  # offset of hash_excludes block from start of igel_hash_header in bytes
     )
     reserved: bytes  # reserved for further use/padding for excludes alignment
+
+    def __post_init__(self) -> None:
+        """Verify ident string on initialisation."""
+        if self.ident != HASH_HDR_IDENT:
+            raise ValueError("Unexpected 'ident' for hash header")
