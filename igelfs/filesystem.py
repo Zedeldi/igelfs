@@ -12,10 +12,9 @@ from igelfs.constants import (
     IGEL_BOOTREG_SIZE,
     IGF_SECTION_SIZE,
     SectionSize,
-    get_section_of,
-    get_start_of_section,
 )
 from igelfs.models import BootRegistryHeader, Directory, PartitionHeader, Section
+from igelfs.utils import get_section_of, get_start_of_section
 
 
 class Filesystem:

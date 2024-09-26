@@ -65,22 +65,6 @@ LOG2_SECT_SIZE = SectionSize.SECT_SIZE_256K
 IGF_SECTION_SIZE = 0x10000 << (LOG2_SECT_SIZE & 0xF)
 IGF_SECTION_SHIFT = 16 + (LOG2_SECT_SIZE & 0xF)
 
-
-def get_start_of_section(n: int) -> int:
-    """Return start of section."""
-    return n << IGF_SECTION_SHIFT
-
-
-def get_section_of(x: int) -> int:
-    """Return section for specified number."""
-    return x >> IGF_SECTION_SHIFT
-
-
-def get_offset_of(x: int) -> int:
-    """Return offset for specified number."""
-    return x & (IGF_SECTION_SIZE - 1)
-
-
 IGF_SECT_HDR_LEN = 32
 IGF_SECT_DATA_LEN = IGF_SECTION_SIZE - IGF_SECT_HDR_LEN
 SECTION_IMAGE_CRC_START = 4  # sizeof(uint32_t)
