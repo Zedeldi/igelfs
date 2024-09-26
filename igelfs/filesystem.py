@@ -105,7 +105,7 @@ class Filesystem:
     def find_sections_by_partition_minor(
         self, partition_minor: int
     ) -> DataModelCollection[Section]:
-        """Return Sections with matching partition minor linearly."""
+        """Return Sections with matching partition minor by searching linearly."""
         return DataModelCollection(
             section
             for section in self.sections
@@ -122,10 +122,22 @@ class Filesystem:
         sections = DataModelCollection([self[fragment.first_section]])
         while not (section := sections[-1]).end_of_chain:
             sections.append(self[section.header.next_section])
+        if not len(sections) == fragment.length:
+            raise ValueError(
+                f"Total count of sections '{len(sections)}' "
+                f"did not match fragment length '{fragment.length}'"
+            )
         return sections
 
+    def find_section_by_partition(self, partition: PartitionHeader) -> Section | None:
+        """Return Section with matching PartitionHeader by searching linearly."""
+        for section in self.sections:
+            if section.partition == partition:
+                return section
+        return None
+
     def find_partition_by_hash(self, hash: bytes | str) -> PartitionHeader | None:
-        """Return PartitionHeader for specified hash."""
+        """Return PartitionHeader for specified hash by searching linearly."""
         if isinstance(hash, str):
             hash = bytes.fromhex(hash)
         for partition in self.partitions:
