@@ -7,6 +7,8 @@ from dataclasses import Field, dataclass, fields
 from pathlib import Path
 from typing import Any, ClassVar, Iterator, get_args, get_origin
 
+from igelfs.models.collections import DataModelCollection
+
 
 @dataclass
 class BaseDataModel(ABC):
@@ -133,20 +135,3 @@ class BaseDataModel(ABC):
             if init_only and not field.init:
                 continue
             yield field
-
-
-class DataModelCollection(list):
-    """List subclass to provide additional helper methods."""
-
-    def to_bytes(self) -> bytes:
-        """Return bytes of all models."""
-        with io.BytesIO() as fd:
-            for model in self:
-                fd.write(model.to_bytes())
-            fd.seek(0)
-            return fd.read()
-
-    @property
-    def size(self) -> int:
-        """Return actual size of all data."""
-        return len(self.to_bytes())

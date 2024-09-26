@@ -4,7 +4,6 @@ import itertools
 from pathlib import Path
 from typing import Iterator
 
-from igelfs.base import DataModelCollection
 from igelfs.constants import (
     DIR_OFFSET,
     DIR_SIZE,
@@ -13,7 +12,13 @@ from igelfs.constants import (
     IGF_SECTION_SIZE,
     SectionSize,
 )
-from igelfs.models import BootRegistryHeader, Directory, PartitionHeader, Section
+from igelfs.models import (
+    BootRegistryHeader,
+    DataModelCollection,
+    Directory,
+    PartitionHeader,
+    Section,
+)
 from igelfs.utils import get_section_of, get_start_of_section
 
 

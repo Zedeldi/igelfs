@@ -16,47 +16,27 @@ IGEL FS has the following layout:
   - Directory
     - Partition Descriptors
     - Fragment Descriptors
-- Section #1...
+- Section #1, Partition Minor #1
   - Section Header
-  - Partition
-    - Partition Header
-    - Partition Payload
+  - Partition Header
+  - Hash Header, optional
+  - Partition Data
+- Section #2, Partition Minor #1
+  - Section Header
+  - Partition Data
+- Section #3, Partition Minor #2...
+
+In short, all partitions are stored in sections as a linked list.
+Each section has a section header, which contains the partition minor (ID)
+and the next section for the partition until 0xffffffff.
+The first section of a partition also contains a partition header
+and optionally a hash header.
+
+The directory contains a list of partition and fragment descriptors, which
+can be used to find the first section index for a given partition minor, without
+the need for linearly searching the entire image.
 """
 
 from igelfs.filesystem import Filesystem
-from igelfs.models import (
-    BootRegistryEntry,
-    BootRegistryHeader,
-    Bootsplash,
-    BootsplashHeader,
-    Directory,
-    FragmentDescriptor,
-    HashExclude,
-    HashHeader,
-    PartitionDescriptor,
-    PartitionExtent,
-    PartitionExtentReadWrite,
-    PartitionExtents,
-    PartitionHeader,
-    Section,
-    SectionHeader,
-)
 
-__all__ = [
-    "BootRegistryEntry",
-    "BootRegistryHeader",
-    "Bootsplash",
-    "BootsplashHeader",
-    "Directory",
-    "Filesystem",
-    "FragmentDescriptor",
-    "HashExclude",
-    "HashHeader",
-    "PartitionDescriptor",
-    "PartitionExtent",
-    "PartitionExtentReadWrite",
-    "PartitionExtents",
-    "PartitionHeader",
-    "Section",
-    "SectionHeader",
-]
+__all__ = ["Filesystem"]
