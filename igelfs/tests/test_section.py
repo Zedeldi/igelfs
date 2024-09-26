@@ -21,8 +21,7 @@ def test_section_header_size(section: Section) -> None:
 
 def test_section_data_size(section: Section) -> None:
     """Test size of section data."""
-    data = section.data
-    size = len(data)
+    size = len(section.data)
     assert size == IGF_SECT_DATA_LEN
 
 

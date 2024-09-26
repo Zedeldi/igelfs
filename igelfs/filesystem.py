@@ -74,7 +74,7 @@ class Filesystem:
         return (section.partition for section in self.sections if section.partition)
 
     @property
-    def bootreg(self) -> BootRegistryHeader:
+    def boot_registry(self) -> BootRegistryHeader:
         """Return Boot Registry Header for image."""
         data = self.get_bytes(IGEL_BOOTREG_OFFSET, IGEL_BOOTREG_SIZE)
         return BootRegistryHeader.from_bytes(data)
