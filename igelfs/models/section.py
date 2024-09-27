@@ -12,7 +12,7 @@ from igelfs.constants import (
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.hash import HashExclude, HashHeader
-from igelfs.models.partition import PartitionHeader
+from igelfs.models.partition import PartitionExtent, PartitionHeader
 
 
 @dataclass
@@ -64,19 +64,27 @@ class Section(BaseDataModel):
 
     header: SectionHeader
     partition: PartitionHeader | None = field(init=False)
+    extents: DataModelCollection[PartitionExtent] | None = field(init=False)
     hash: HashHeader | None = field(init=False)
     hash_excludes: DataModelCollection[HashExclude] | None = field(init=False)
     data: bytes
 
     def __post_init__(self) -> None:
         """Parse data into optional additional attributes."""
-        # Partition header
-        partition, data = PartitionHeader.from_bytes_with_remaining(self.data)
-        if partition.hdrlen != PartitionHeader.get_model_size():
+        # Partition
+        try:  # Partition header
+            self.partition, self.data = PartitionHeader.from_bytes_with_remaining(
+                self.data
+            )
+        except ValueError:
             self.partition = None
-        else:
-            self.partition = partition
-            self.data = data
+            self.extents = None
+        else:  # Partition extents
+            self.extents = DataModelCollection()
+            for _ in range(self.partition.n_extents):
+                extent, self.data = PartitionExtent.from_bytes_with_remaining(self.data)
+                self.extents.append(extent)
+
         # Hashing
         try:  # Hash header
             self.hash, self.data = HashHeader.from_bytes_with_remaining(self.data)

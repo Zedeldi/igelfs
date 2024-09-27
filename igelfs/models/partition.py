@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from igelfs.constants import MAX_EXTENT_NUM, PartitionType
+from igelfs.constants import MAX_EXTENT_NUM, ExtentType, PartitionType
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 
@@ -27,7 +27,7 @@ class PartitionHeader(BaseDataModel):
     }
 
     type: int  # partition type
-    hdrlen: int  # length of the complete partition header
+    hdrlen: int  # length of the complete partition header (incl. extents)
     partlen: int  # length of this partition (incl. header)
     n_blocks: int  # number of uncompressed 1k blocks
     offset_blocktable: int  # needed for compressed partitions
@@ -45,6 +45,13 @@ class PartitionHeader(BaseDataModel):
             self.type.to_bytes(self.MODEL_ATTRIBUTE_SIZES["type"], byteorder="big"),
             byteorder="little",
         )
+        size = self.get_model_size() + (
+            self.n_extents * PartitionExtent.get_model_size()
+        )
+        if self.hdrlen != size:
+            raise ValueError(
+                f"Size '{size}' does not match hdrlen '{self.hdrlen}' for partition header"
+            )
 
     def get_type(self) -> PartitionType:
         """Return PartitionType from PartitionHeader instance."""
@@ -66,6 +73,10 @@ class PartitionExtent(BaseDataModel):
     offset: int
     length: int
     name: bytes  # optional character code
+
+    def get_type(self) -> ExtentType:
+        """Return ExtentType from PartitionExtent instance."""
+        return ExtentType(self.type)
 
 
 @dataclass
