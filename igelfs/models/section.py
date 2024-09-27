@@ -6,6 +6,7 @@ from typing import ClassVar
 from igelfs.constants import (
     IGF_SECT_DATA_LEN,
     IGF_SECT_HDR_LEN,
+    IGF_SECT_HDR_MAGIC,
     SECTION_IMAGE_CRC_START,
 )
 from igelfs.models.base import BaseDataModel
@@ -39,6 +40,11 @@ class SectionHeader(BaseDataModel):
     section_in_minor: int  # n = 0,...,(number of sect.-1)
     next_section: int  # index of the next section or 0xffffffff = end of chain
     reserved: bytes  # section header is 32 bytes but 6 bytes are unused
+
+    def __post_init__(self) -> None:
+        """Verify magic number on initialisation."""
+        if self.magic != IGF_SECT_HDR_MAGIC:
+            raise ValueError(f"Unexpected magic '{self.magic}' for section header")
 
 
 @dataclass

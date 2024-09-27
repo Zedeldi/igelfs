@@ -77,4 +77,4 @@ class HashHeader(BaseDataModel):
     def __post_init__(self) -> None:
         """Verify ident string on initialisation."""
         if self.ident != HASH_HDR_IDENT:
-            raise ValueError("Unexpected 'ident' for hash header")
+            raise ValueError(f"Unexpected ident '{self.ident}' for hash header")

@@ -66,7 +66,7 @@ class Filesystem:
             try:
                 yield self[index]
             except ValueError:
-                return
+                continue
 
     @property
     def partitions(self) -> Iterator[PartitionHeader]:
