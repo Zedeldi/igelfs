@@ -102,6 +102,9 @@ class Filesystem:
         """Return Section of image by index."""
         if index > self.section_count:
             raise IndexError("Index is greater than section count")
+        if index < 0:
+            # Implement indexing from end, e.g. -1 = last element
+            index = self.section_count - abs(index + 1)
         offset = get_start_of_section(index)
         data = self.get_bytes(offset, IGF_SECTION_SIZE)
         return Section.from_bytes(data)
