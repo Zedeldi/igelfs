@@ -51,6 +51,7 @@ class HashHeader(BaseDataModel):
         "offset_hash_excludes": 4,
         "reserved": 4,
     }
+    _HASH_ALGORITHMS: ClassVar[dict[int, str]] = {32: "sha256", 64: "sha512"}
 
     ident: str  # Ident string "chksum"
     # version number of header probably use with flags
@@ -78,3 +79,7 @@ class HashHeader(BaseDataModel):
         """Verify ident string on initialisation."""
         if self.ident != HASH_HDR_IDENT:
             raise ValueError(f"Unexpected ident '{self.ident}' for hash header")
+
+    def get_hash_algorithm_name(self) -> str:
+        """Return name of hashing algorithm used."""
+        return self._HASH_ALGORITHMS[self.hash_bytes]

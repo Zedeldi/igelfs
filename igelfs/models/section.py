@@ -67,6 +67,7 @@ class Section(BaseDataModel):
     extents: DataModelCollection[PartitionExtent] | None = field(init=False)
     hash: HashHeader | None = field(init=False)
     hash_excludes: DataModelCollection[HashExclude] | None = field(init=False)
+    hash_value: bytes | None = field(init=False)
     data: bytes
 
     def __post_init__(self) -> None:
@@ -91,6 +92,7 @@ class Section(BaseDataModel):
         except (UnicodeDecodeError, ValueError):
             self.hash = None
             self.hash_excludes = None
+            self.hash_value = None
         else:  # Hash excludes
             self.hash_excludes = DataModelCollection()
             for _ in range(self.hash.count_excludes):
@@ -98,6 +100,10 @@ class Section(BaseDataModel):
                     self.data
                 )
                 self.hash_excludes.append(hash_exclude)
+            self.hash_value, self.data = (
+                self.data[: self.hash.hash_block_size],
+                self.data[self.hash.hash_block_size :],
+            )
 
     @property
     def crc(self) -> int:
@@ -108,3 +114,16 @@ class Section(BaseDataModel):
     def end_of_chain(self) -> bool:
         """Return whether this section is the last in the chain."""
         return self.header.next_section == 0xFFFFFFFF
+
+    @staticmethod
+    def split_into_sections(data: bytes) -> list[bytes]:
+        """Split bytes into list of fixed-length chunks."""
+        return [
+            data[i : i + IGF_SECT_DATA_LEN]
+            for i in range(0, len(data), IGF_SECT_DATA_LEN)
+        ]
+
+    @staticmethod
+    def get_payload_of(sections: DataModelCollection["Section"]) -> bytes:
+        """Return bytes for all sections, excluding headers."""
+        return b"".join(section.data for section in sections)
