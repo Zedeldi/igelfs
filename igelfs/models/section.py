@@ -3,12 +3,15 @@
 from dataclasses import dataclass, field
 from typing import ClassVar
 
+import rsa
+
 from igelfs.constants import (
     IGF_SECT_DATA_LEN,
     IGF_SECT_HDR_LEN,
     IGF_SECT_HDR_MAGIC,
     SECTION_IMAGE_CRC_START,
 )
+from igelfs.keys import HSM_PUBLIC_KEY
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.hash import HashExclude, HashHeader
@@ -114,6 +117,20 @@ class Section(BaseDataModel):
     def end_of_chain(self) -> bool:
         """Return whether this section is the last in the chain."""
         return self.header.next_section == 0xFFFFFFFF
+
+    def verify_signature(self) -> bool:
+        """Verify signature of hash block."""
+        if not all([self.hash, self.hash_excludes, self.hash_value]):
+            raise ValueError(
+                "Section must have a hash header for signature verification"
+            )
+        data = self.hash_excludes.to_bytes() + self.hash_value
+        try:
+            return (
+                rsa.verify(data, self.hash.signature[:256], HSM_PUBLIC_KEY) == "SHA-256"
+            )
+        except rsa.VerificationError:
+            return False
 
     @staticmethod
     def split_into_sections(data: bytes) -> list[bytes]:

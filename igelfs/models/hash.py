@@ -8,6 +8,27 @@ from igelfs.models.base import BaseDataModel
 
 
 @dataclass
+class HashInformation(BaseDataModel):
+    """Dataclass to handle hash information data."""
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "offset_cache": 4,
+        "offset_hashes": 4,
+        "count_blocks": 4,
+        "block_size": 4,
+        "count_excludes": 2,
+        "hash_size": 2,
+    }
+
+    offset_cache: int
+    offset_hashes: int
+    count_blocks: int
+    block_size: int
+    count_excludes: int
+    hash_size: int
+
+
+@dataclass
 class HashExclude(BaseDataModel):
     """
     Dataclass to handle hash exclude data.
@@ -83,3 +104,18 @@ class HashHeader(BaseDataModel):
     def get_hash_algorithm_name(self) -> str:
         """Return name of hashing algorithm used."""
         return self._HASH_ALGORITHMS[self.hash_bytes]
+
+    def get_hash_information(self) -> HashInformation:
+        """Return HashInformation instance for HashHeader."""
+        offset_cache = HashHeader.get_model_size() + (
+            self.count_excludes * self.excludes_size
+        )
+        offset_hashes = offset_cache + self.count_hash
+        return HashInformation(
+            offset_cache=offset_cache,
+            offset_hashes=offset_hashes,
+            count_blocks=self.count_hash,
+            block_size=self.blocksize,
+            count_excludes=self.count_excludes,
+            hash_size=self.hash_bytes,
+        )

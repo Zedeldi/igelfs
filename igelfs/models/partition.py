@@ -10,7 +10,12 @@ from igelfs.models.collections import DataModelCollection
 
 @dataclass
 class PartitionHeader(BaseDataModel):
-    """Dataclass to handle partition header data."""
+    """
+    Dataclass to handle partition header data.
+
+    Contains the partition and header size, update hash and name for directory.
+    n_blocks / (2 ** cluster_shift) == n_clusters
+    """
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
         "type": 2,

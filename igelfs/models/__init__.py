@@ -4,7 +4,7 @@ from igelfs.models.boot_registry import BootRegistryEntry, BootRegistryHeader
 from igelfs.models.bootsplash import Bootsplash, BootsplashHeader
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.directory import Directory, FragmentDescriptor, PartitionDescriptor
-from igelfs.models.hash import HashExclude, HashHeader
+from igelfs.models.hash import HashExclude, HashHeader, HashInformation
 from igelfs.models.partition import (
     PartitionExtent,
     PartitionExtentReadWrite,
@@ -23,6 +23,7 @@ __all__ = [
     "FragmentDescriptor",
     "HashExclude",
     "HashHeader",
+    "HashInformation",
     "PartitionDescriptor",
     "PartitionExtent",
     "PartitionExtentReadWrite",
