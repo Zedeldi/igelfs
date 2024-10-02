@@ -5,6 +5,7 @@ from typing import ClassVar
 
 from igelfs.constants import HASH_HDR_IDENT
 from igelfs.models.base import BaseDataModel
+from igelfs.models.collections import DataModelCollection
 
 
 @dataclass
@@ -50,6 +51,26 @@ class HashExclude(BaseDataModel):
     repeat: int  # repeat after ... bytes if 0 -> no repeat
     end: int  # end address where the exclude area end (only used if repeat is defined)
 
+    def get_excluded_indices(self) -> list[int]:
+        """Return list of excluded indices for hash."""
+        if self.repeat == 0:
+            return list(range(self.start, self.start + self.size))
+        indices = []
+        for offset in range(0, self.end, self.repeat):
+            start = self.start + offset
+            indices.extend(range(start, start + self.size))
+        return indices
+
+    @staticmethod
+    def get_excluded_indices_from_collection(
+        excludes: DataModelCollection["HashExclude"],
+    ) -> list[int]:
+        """Return list of excluded indices for all hash excludes."""
+        indices = []
+        for exclude in excludes:
+            indices.extend(exclude.get_excluded_indices())
+        return indices
+
 
 @dataclass
 class HashHeader(BaseDataModel):
@@ -72,7 +93,6 @@ class HashHeader(BaseDataModel):
         "offset_hash_excludes": 4,
         "reserved": 4,
     }
-    _HASH_ALGORITHMS: ClassVar[dict[int, str]] = {32: "sha256", 64: "sha512"}
 
     ident: str  # Ident string "chksum"
     # version number of header probably use with flags
@@ -100,10 +120,6 @@ class HashHeader(BaseDataModel):
         """Verify ident string on initialisation."""
         if self.ident != HASH_HDR_IDENT:
             raise ValueError(f"Unexpected ident '{self.ident}' for hash header")
-
-    def get_hash_algorithm_name(self) -> str:
-        """Return name of hashing algorithm used."""
-        return self._HASH_ALGORITHMS[self.hash_bytes]
 
     def get_hash_information(self) -> HashInformation:
         """Return HashInformation instance for HashHeader."""

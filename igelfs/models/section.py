@@ -1,5 +1,7 @@
 """Data models for a section."""
 
+import hashlib
+import io
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -16,6 +18,7 @@ from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.hash import HashExclude, HashHeader
 from igelfs.models.partition import PartitionExtent, PartitionHeader
+from igelfs.utils import get_start_of_section
 
 
 @dataclass
@@ -119,7 +122,7 @@ class Section(BaseDataModel):
         return self.header.next_section == 0xFFFFFFFF
 
     def verify_signature(self) -> bool:
-        """Verify signature of hash block."""
+        """Verify signature of hash block (hash_excludes + hash_value)."""
         if not all([self.hash, self.hash_excludes, self.hash_value]):
             raise ValueError(
                 "Section must have a hash header for signature verification"
@@ -131,6 +134,79 @@ class Section(BaseDataModel):
             )
         except rsa.VerificationError:
             return False
+
+    def get_hashes(self) -> list[bytes]:
+        """Return list of hashes as bytes from hash value."""
+        if not all([self.hash, self.hash_value]):
+            raise ValueError("Section must have a hash header and value for hashing")
+        return [
+            chunk
+            for chunk in [
+                self.hash_value[i : i + self.hash.hash_bytes]
+                for i in range(0, self.hash.hash_block_size, self.hash.hash_bytes)
+            ]
+        ]
+
+    def to_bytes_excluding_by_indices(
+        self, hash_excludes: DataModelCollection[HashExclude]
+    ) -> bytes:
+        """
+        Return bytes of section excluding specified indices.
+
+        Excluded bytes are replaced with 0x00.
+        """
+        excludes = HashExclude.get_excluded_indices_from_collection(hash_excludes)
+        offset = get_start_of_section(self.header.section_in_minor)
+        with io.BytesIO() as fd:
+            for index, byte in enumerate([bytes([i]) for i in self.to_bytes()]):
+                if index + offset in excludes:
+                    fd.write(b"\x00")
+                    continue
+                fd.write(byte)
+            fd.seek(0)
+            return fd.read()
+
+    def to_bytes_excluding_by_range(
+        self, hash_header: HashHeader, hash_excludes: DataModelCollection[HashExclude]
+    ) -> bytes:
+        """
+        Return bytes of section excluding specified ranges.
+
+        Excluded bytes are replaced with 0x00.
+        This is a port of the original generate_hash method from validate.c.
+        """
+        position = self.header.section_in_minor * hash_header.blocksize
+        with io.BytesIO() as fd:
+            fd.write(self.to_bytes())
+            fd.seek(0)
+            for exclude in hash_excludes:
+                if (
+                    exclude.start >= position
+                    and exclude.start < position + hash_header.blocksize
+                ):
+                    fd.seek(exclude.start)
+                    fd.write(b"\x00" * exclude.size)
+                    continue
+                if not exclude.repeat or exclude.end < position:
+                    continue
+                repeat = (position / exclude.repeat) * exclude.repeat + exclude.start
+                if repeat <= position and repeat + exclude.size > position:
+                    size = int((repeat + exclude.size) - position)
+                    fd.write(b"\x00" * size)
+                    continue
+                if repeat >= position and repeat < position + hash_header.blocksize:
+                    fd.seek(int(repeat - position))
+                    fd.write(b"\x00" * exclude.size)
+                    continue
+            fd.seek(0)
+            return fd.read()
+
+    def calculate_hash(
+        self, hash_header: HashHeader, hash_excludes: DataModelCollection[HashExclude]
+    ) -> bytes:
+        """Return hash of section excluding specified ranges."""
+        data = self.to_bytes_excluding_by_range(hash_header, hash_excludes)
+        return hashlib.blake2b(data, digest_size=hash_header.hash_bytes).digest()
 
     @staticmethod
     def split_into_sections(data: bytes) -> list[bytes]:
