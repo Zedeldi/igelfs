@@ -19,7 +19,10 @@ IGEL FS has the following layout:
 - Section #1, Partition Minor #1
   - Section Header
   - Partition Header
-  - Hash Header, optional
+  - Partition Extents  } PartitionHeader.n_extents
+  - Hash Header        ]
+  - Hash Excludes      } Optional
+  - Hash Values        ]
   - Partition Data
 - Section #2, Partition Minor #1
   - Section Header

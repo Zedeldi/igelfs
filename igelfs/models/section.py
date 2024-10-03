@@ -176,9 +176,7 @@ class Section(BaseDataModel):
         This is a port of the original generate_hash method from validate.c.
         """
         position = self.header.section_in_minor * hash_header.blocksize
-        with io.BytesIO() as fd:
-            fd.write(self.to_bytes())
-            fd.seek(0)
+        with io.BytesIO(self.to_bytes()) as fd:
             for exclude in hash_excludes:
                 if (
                     exclude.start >= position

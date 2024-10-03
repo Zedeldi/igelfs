@@ -62,6 +62,14 @@ class BaseDataModel(ABC):
         """Return size of data for attribute."""
         return cls.MODEL_ATTRIBUTE_SIZES[name]
 
+    def get_offset_of(self, data: bytes) -> int:
+        """Return offset of model instance for start of data"""
+        return self.to_bytes().index(data)
+
+    def get_offset_relative_to(self, data: bytes) -> int:
+        """Return offset of data for start of model instance."""
+        return data.index(self.to_bytes())
+
     def get_crc(self) -> int:
         """Calculate CRC32 of section."""
         if not getattr(self, "CRC_OFFSET"):

@@ -37,6 +37,15 @@ class HashExclude(BaseDataModel):
     Used to mark areas which should be excluded from hashing.
     The start, end and size are based on absolute addresses not relative
     to section or partition headers.
+
+    The following bytes are normally excluded for each section (inclusive):
+    -   0-3 => SectionHeader.crc
+    -   16-17 => SectionHeader.generation
+    -   22-25 => SectionHeader.next_section
+
+    The following bytes are normally excluded for section zero (inclusive):
+    -   164-675 => HashHeader.signature
+    -   836-836 + (HashHeader.hash_bytes * HashHeader.count_hash) => Section.hash_value
     """
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
@@ -123,7 +132,7 @@ class HashHeader(BaseDataModel):
 
     def get_hash_information(self) -> HashInformation:
         """Return HashInformation instance for HashHeader."""
-        offset_cache = HashHeader.get_model_size() + (
+        offset_cache = HashInformation.get_model_size() + (
             self.count_excludes * self.excludes_size
         )
         offset_hashes = offset_cache + self.count_hash
