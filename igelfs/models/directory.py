@@ -6,6 +6,7 @@ from typing import ClassVar
 from igelfs.constants import DIR_MAX_MINORS, MAX_FRAGMENTS
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
+from igelfs.models.mixins import CRCMixin
 
 
 @dataclass
@@ -36,7 +37,7 @@ class PartitionDescriptor(BaseDataModel):
 
 
 @dataclass
-class Directory(BaseDataModel):
+class Directory(BaseDataModel, CRCMixin):
     """
     Dataclass to handle directory header data.
 

@@ -1,21 +1,18 @@
-"""Abstract base classes for various data models."""
+"""Concrete base classes for various data models."""
 
 import io
-import zlib
-from abc import ABC
 from dataclasses import Field, dataclass, fields
-from pathlib import Path
 from typing import Any, ClassVar, Iterator, get_args, get_origin
 
+from igelfs.models.abc import BaseBytesModel
 from igelfs.models.collections import DataModelCollection
 
 
 @dataclass
-class BaseDataModel(ABC):
+class BaseDataModel(BaseBytesModel):
     """Abstract base class for data model."""
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]]
-    CRC_OFFSET: ClassVar[int]
 
     def __len__(self) -> int:
         """Implement __len__ data model method."""
@@ -41,17 +38,6 @@ class BaseDataModel(ABC):
             fd.seek(0)
             return fd.read()
 
-    def write(self, path: str | Path) -> Path:
-        """Write data of model to specified path and return Path object."""
-        path = Path(path).absolute()
-        with open(path, "wb") as fd:
-            fd.write(self.to_bytes())
-        return path
-
-    def get_actual_size(self) -> int:
-        """Return actual size of all data."""
-        return len(self.to_bytes())
-
     @classmethod
     def get_model_size(cls: type["BaseDataModel"]) -> int:
         """Return expected total size of data for model."""
@@ -62,26 +48,9 @@ class BaseDataModel(ABC):
         """Return size of data for attribute."""
         return cls.MODEL_ATTRIBUTE_SIZES[name]
 
-    def get_offset_of(self, data: bytes) -> int:
-        """Return offset of model instance for start of data"""
-        return self.to_bytes().index(data)
-
-    def get_offset_relative_to(self, data: bytes) -> int:
-        """Return offset of data for start of model instance."""
-        return data.index(self.to_bytes())
-
-    def get_crc(self) -> int:
-        """Calculate CRC32 of section."""
-        if not getattr(self, "CRC_OFFSET"):
-            raise NotImplementedError("Model has not implemented CRC32 method")
-        return zlib.crc32(self.to_bytes()[self.CRC_OFFSET :])
-
     def verify(self) -> bool:
         """Verify data model integrity."""
-        try:
-            return self.crc == self.get_crc()
-        except AttributeError:
-            return self.get_actual_size() == self.get_model_size()
+        return self.get_actual_size() == self.get_model_size()
 
     @classmethod
     def from_bytes_to_dict(

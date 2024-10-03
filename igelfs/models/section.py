@@ -13,6 +13,7 @@ from igelfs.constants import (
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.hash import Hash, HashExclude, HashHeader
+from igelfs.models.mixins import CRCMixin
 from igelfs.models.partition import Partition, PartitionExtent, PartitionHeader
 from igelfs.utils import get_start_of_section
 
@@ -50,7 +51,7 @@ class SectionHeader(BaseDataModel):
 
 
 @dataclass
-class Section(BaseDataModel):
+class Section(BaseDataModel, CRCMixin):
     """
     Dataclass to handle section of an image.
 

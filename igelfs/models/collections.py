@@ -2,8 +2,10 @@
 
 import io
 
+from igelfs.models.abc import BaseBytesModel
 
-class DataModelCollection(list):
+
+class DataModelCollection(BaseBytesModel, list):
     """List subclass to provide additional helper methods."""
 
     def to_bytes(self) -> bytes:
@@ -13,8 +15,3 @@ class DataModelCollection(list):
                 fd.write(model.to_bytes())
             fd.seek(0)
             return fd.read()
-
-    @property
-    def size(self) -> int:
-        """Return actual size of all data."""
-        return len(self.to_bytes())
