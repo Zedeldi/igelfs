@@ -31,7 +31,7 @@ class BaseDataModel(BaseBytesModel):
                         fd.write(data.to_bytes(size, byteorder="little"))
                     case str():
                         fd.write(data.encode())
-                    case BaseDataModel() | DataModelCollection():
+                    case BaseBytesModel():
                         fd.write(data.to_bytes())
                     case _:
                         continue
@@ -125,3 +125,24 @@ class BaseDataModel(BaseBytesModel):
             if init_only and not field.init:
                 continue
             yield field
+
+
+class BaseDataGroup(BaseBytesModel):
+    """Abstract base class for data model."""
+
+    def to_bytes(self) -> bytes:
+        """Return bytes of all data."""
+        with io.BytesIO() as fd:
+            for field in fields(self):
+                data = getattr(self, field.name)
+                match data:
+                    case bytes():
+                        fd.write(data)
+                    case str():
+                        fd.write(data.encode())
+                    case BaseBytesModel():
+                        fd.write(data.to_bytes())
+                    case _:
+                        continue
+            fd.seek(0)
+            return fd.read()

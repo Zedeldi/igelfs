@@ -8,7 +8,7 @@ import rsa
 
 from igelfs.constants import HASH_HDR_IDENT
 from igelfs.keys import HSM_PUBLIC_KEY
-from igelfs.models.base import BaseDataModel
+from igelfs.models.base import BaseDataGroup, BaseDataModel
 from igelfs.models.collections import DataModelCollection
 
 
@@ -151,7 +151,7 @@ class HashHeader(BaseDataModel):
 
 
 @dataclass
-class Hash:
+class Hash(BaseDataGroup):
     """Dataclass to store and handle hash-related data models."""
 
     header: HashHeader

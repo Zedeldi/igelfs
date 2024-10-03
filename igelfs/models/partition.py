@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 from igelfs.constants import MAX_EXTENT_NUM, ExtentType, PartitionType
-from igelfs.models.base import BaseDataModel
+from igelfs.models.base import BaseDataGroup, BaseDataModel
 from igelfs.models.collections import DataModelCollection
 
 
@@ -115,7 +115,7 @@ class PartitionExtentReadWrite(BaseDataModel):
 
 
 @dataclass
-class Partition:
+class Partition(BaseDataGroup):
     """Dataclass to store and handle partition-related data models."""
 
     header: PartitionHeader
