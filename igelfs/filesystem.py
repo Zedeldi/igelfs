@@ -16,6 +16,7 @@ from igelfs.models import (
     BootRegistryHeader,
     DataModelCollection,
     Directory,
+    Partition,
     PartitionHeader,
     Section,
 )
@@ -69,7 +70,7 @@ class Filesystem:
                 continue
 
     @property
-    def partitions(self) -> Iterator[PartitionHeader]:
+    def partitions(self) -> Iterator[Partition]:
         """Return generator of partition headers."""
         return (section.partition for section in self.sections if section.partition)
 
@@ -136,18 +137,20 @@ class Filesystem:
             )
         return sections
 
-    def find_section_by_partition(self, partition: PartitionHeader) -> Section | None:
+    def find_section_by_partition_header(
+        self, partition_header: PartitionHeader
+    ) -> Section | None:
         """Return Section with matching PartitionHeader by searching linearly."""
         for section in self.sections:
-            if section.partition == partition:
+            if section.partition.header == partition_header:
                 return section
         return None
 
-    def find_partition_by_hash(self, hash: bytes | str) -> PartitionHeader | None:
-        """Return PartitionHeader for specified hash by searching linearly."""
-        if isinstance(hash, str):
-            hash = bytes.fromhex(hash)
+    def find_partition_by_hash(self, hash_: bytes | str) -> Partition | None:
+        """Return Partition for specified hash by searching linearly."""
+        if isinstance(hash_, str):
+            hash_ = bytes.fromhex(hash_)
         for partition in self.partitions:
-            if partition.update_hash == hash:
+            if partition.header.update_hash == hash_:
                 return partition
         return None
