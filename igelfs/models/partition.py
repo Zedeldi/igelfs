@@ -46,10 +46,6 @@ class PartitionHeader(BaseDataModel):
 
     def __post_init__(self) -> None:
         """Handle model-specific data post-initialisation."""
-        self.type = int.from_bytes(
-            self.type.to_bytes(self.MODEL_ATTRIBUTE_SIZES["type"], byteorder="big"),
-            byteorder="little",
-        )
         size = self.get_model_size() + (
             self.n_extents * PartitionExtent.get_model_size()
         )
@@ -60,7 +56,11 @@ class PartitionHeader(BaseDataModel):
 
     def get_type(self) -> PartitionType:
         """Return PartitionType from PartitionHeader instance."""
-        return PartitionType(self.type & 0xFF)
+        type_ = int.from_bytes(
+            self.type.to_bytes(self.MODEL_ATTRIBUTE_SIZES["type"], byteorder="big"),
+            byteorder="little",
+        )
+        return PartitionType(type_ & 0xFF)
 
 
 @dataclass
