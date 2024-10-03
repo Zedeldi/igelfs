@@ -1,11 +1,8 @@
 """Data models for a section."""
 
-import hashlib
 import io
 from dataclasses import dataclass, field
 from typing import ClassVar
-
-import rsa
 
 from igelfs.constants import (
     IGF_SECT_DATA_LEN,
@@ -13,11 +10,10 @@ from igelfs.constants import (
     IGF_SECT_HDR_MAGIC,
     SECTION_IMAGE_CRC_START,
 )
-from igelfs.keys import HSM_PUBLIC_KEY
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
-from igelfs.models.hash import HashExclude, HashHeader
-from igelfs.models.partition import PartitionExtent, PartitionHeader
+from igelfs.models.hash import Hash, HashExclude, HashHeader
+from igelfs.models.partition import Partition, PartitionExtent, PartitionHeader
 from igelfs.utils import get_start_of_section
 
 
@@ -69,46 +65,46 @@ class Section(BaseDataModel):
     CRC_OFFSET = SECTION_IMAGE_CRC_START
 
     header: SectionHeader
-    partition: PartitionHeader | None = field(init=False)
-    extents: DataModelCollection[PartitionExtent] | None = field(init=False)
-    hash: HashHeader | None = field(init=False)
-    hash_excludes: DataModelCollection[HashExclude] | None = field(init=False)
-    hash_value: bytes | None = field(init=False)
+    partition: Partition | None = field(init=False)
+    hash: Hash | None = field(init=False)
     data: bytes
 
     def __post_init__(self) -> None:
         """Parse data into optional additional attributes."""
         # Partition
         try:  # Partition header
-            self.partition, self.data = PartitionHeader.from_bytes_with_remaining(
+            partition_header, self.data = PartitionHeader.from_bytes_with_remaining(
                 self.data
             )
         except ValueError:
             self.partition = None
-            self.extents = None
         else:  # Partition extents
-            self.extents = DataModelCollection()
-            for _ in range(self.partition.n_extents):
+            partition_extents = DataModelCollection()
+            for _ in range(partition_header.n_extents):
                 extent, self.data = PartitionExtent.from_bytes_with_remaining(self.data)
-                self.extents.append(extent)
+                partition_extents.append(extent)
+            self.partition = Partition(
+                header=partition_header, extents=partition_extents
+            )
 
         # Hashing
         try:  # Hash header
-            self.hash, self.data = HashHeader.from_bytes_with_remaining(self.data)
+            hash_header, self.data = HashHeader.from_bytes_with_remaining(self.data)
         except (UnicodeDecodeError, ValueError):
             self.hash = None
-            self.hash_excludes = None
-            self.hash_value = None
         else:  # Hash excludes
-            self.hash_excludes = DataModelCollection()
-            for _ in range(self.hash.count_excludes):
+            hash_excludes = DataModelCollection()
+            for _ in range(hash_header.count_excludes):
                 hash_exclude, self.data = HashExclude.from_bytes_with_remaining(
                     self.data
                 )
-                self.hash_excludes.append(hash_exclude)
-            self.hash_value, self.data = (
-                self.data[: self.hash.hash_block_size],
-                self.data[self.hash.hash_block_size :],
+                hash_excludes.append(hash_exclude)
+            hash_values, self.data = (
+                self.data[: hash_header.hash_block_size],
+                self.data[hash_header.hash_block_size :],
+            )
+            self.hash = Hash(
+                header=hash_header, excludes=hash_excludes, values=hash_values
             )
 
     @property
@@ -121,41 +117,13 @@ class Section(BaseDataModel):
         """Return whether this section is the last in the chain."""
         return self.header.next_section == 0xFFFFFFFF
 
-    def verify_signature(self) -> bool:
-        """Verify signature of hash block (hash_excludes + hash_value)."""
-        if not all([self.hash, self.hash_excludes, self.hash_value]):
-            raise ValueError(
-                "Section must have a hash header for signature verification"
-            )
-        data = self.hash_excludes.to_bytes() + self.hash_value
-        try:
-            return (
-                rsa.verify(data, self.hash.signature[:256], HSM_PUBLIC_KEY) == "SHA-256"
-            )
-        except rsa.VerificationError:
-            return False
-
-    def get_hashes(self) -> list[bytes]:
-        """Return list of hashes as bytes from hash value."""
-        if not all([self.hash, self.hash_value]):
-            raise ValueError("Section must have a hash header and value for hashing")
-        return [
-            chunk
-            for chunk in [
-                self.hash_value[i : i + self.hash.hash_bytes]
-                for i in range(0, self.hash.hash_block_size, self.hash.hash_bytes)
-            ]
-        ]
-
-    def to_bytes_excluding_by_indices(
-        self, hash_excludes: DataModelCollection[HashExclude]
-    ) -> bytes:
+    def _to_bytes_excluding_by_indices(self, hash_: Hash) -> bytes:
         """
         Return bytes of section excluding specified indices.
 
         Excluded bytes are replaced with 0x00.
         """
-        excludes = HashExclude.get_excluded_indices_from_collection(hash_excludes)
+        excludes = HashExclude.get_excluded_indices_from_collection(hash_.excludes)
         offset = get_start_of_section(self.header.section_in_minor)
         with io.BytesIO() as fd:
             for index, byte in enumerate([bytes([i]) for i in self.to_bytes()]):
@@ -166,21 +134,19 @@ class Section(BaseDataModel):
             fd.seek(0)
             return fd.read()
 
-    def to_bytes_excluding_by_range(
-        self, hash_header: HashHeader, hash_excludes: DataModelCollection[HashExclude]
-    ) -> bytes:
+    def _to_bytes_excluding_by_range(self, hash_: Hash) -> bytes:
         """
         Return bytes of section excluding specified ranges.
 
         Excluded bytes are replaced with 0x00.
         This is a port of the original generate_hash method from validate.c.
         """
-        position = self.header.section_in_minor * hash_header.blocksize
+        position = self.header.section_in_minor * hash_.header.blocksize
         with io.BytesIO(self.to_bytes()) as fd:
-            for exclude in hash_excludes:
+            for exclude in hash_.excludes:
                 if (
                     exclude.start >= position
-                    and exclude.start < position + hash_header.blocksize
+                    and exclude.start < position + hash_.header.blocksize
                 ):
                     fd.seek(exclude.start)
                     fd.write(b"\x00" * exclude.size)
@@ -192,19 +158,17 @@ class Section(BaseDataModel):
                     size = int((repeat + exclude.size) - position)
                     fd.write(b"\x00" * size)
                     continue
-                if repeat >= position and repeat < position + hash_header.blocksize:
+                if repeat >= position and repeat < position + hash_.header.blocksize:
                     fd.seek(int(repeat - position))
                     fd.write(b"\x00" * exclude.size)
                     continue
             fd.seek(0)
             return fd.read()
 
-    def calculate_hash(
-        self, hash_header: HashHeader, hash_excludes: DataModelCollection[HashExclude]
-    ) -> bytes:
+    def calculate_hash(self, hash_: Hash) -> bytes:
         """Return hash of section excluding specified ranges."""
-        data = self.to_bytes_excluding_by_range(hash_header, hash_excludes)
-        return hashlib.blake2b(data, digest_size=hash_header.hash_bytes).digest()
+        data = self._to_bytes_excluding_by_range(hash_)
+        return hash_.calculate_hash(data)
 
     @staticmethod
     def split_into_sections(data: bytes) -> list[bytes]:

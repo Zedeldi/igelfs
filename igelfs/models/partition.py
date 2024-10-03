@@ -1,6 +1,6 @@
 """Data models for a partition."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 from igelfs.constants import MAX_EXTENT_NUM, ExtentType, PartitionType
@@ -112,3 +112,13 @@ class PartitionExtentReadWrite(BaseDataModel):
     pos: int  # position inside extent to start reading from
     size: int  # size of data (WARNING limited to EXTENT_MAX_READ_WRITE_SIZE)
     data: int  # destination/src pointer for the data to
+
+
+@dataclass
+class Partition:
+    """Dataclass to store and handle partition-related data models."""
+
+    header: PartitionHeader
+    extents: DataModelCollection[PartitionExtent] = field(
+        default_factory=DataModelCollection
+    )

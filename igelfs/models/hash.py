@@ -1,9 +1,13 @@
 """Data models for hash data of a partition."""
 
+import hashlib
 from dataclasses import dataclass
 from typing import ClassVar
 
+import rsa
+
 from igelfs.constants import HASH_HDR_IDENT
+from igelfs.keys import HSM_PUBLIC_KEY
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 
@@ -144,3 +148,37 @@ class HashHeader(BaseDataModel):
             count_excludes=self.count_excludes,
             hash_size=self.hash_bytes,
         )
+
+
+@dataclass
+class Hash:
+    """Dataclass to store and handle hash-related data models."""
+
+    header: HashHeader
+    excludes: DataModelCollection[HashExclude]
+    values: bytes
+
+    def get_hashes(self) -> list[bytes]:
+        """Return list of hashes as bytes from hash values."""
+        return [
+            chunk
+            for chunk in [
+                self.values[i : i + self.header.hash_bytes]
+                for i in range(0, self.header.hash_block_size, self.header.hash_bytes)
+            ]
+        ]
+
+    def calculate_hash(self, data: bytes) -> bytes:
+        """Return hash of data."""
+        return hashlib.blake2b(data, digest_size=self.header.hash_bytes).digest()
+
+    def verify_signature(self) -> bool:
+        """Verify signature of hash block (excludes + values)."""
+        data = self.excludes.to_bytes() + self.values
+        try:
+            return (
+                rsa.verify(data, self.header.signature[:256], HSM_PUBLIC_KEY)
+                == "SHA-256"
+            )
+        except rsa.VerificationError:
+            return False
