@@ -10,7 +10,7 @@ from igelfs.models.collections import DataModelCollection
 
 @dataclass
 class BaseDataModel(BaseBytesModel):
-    """Abstract base class for data model."""
+    """Concrete base class for data model."""
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]]
 
@@ -128,7 +128,7 @@ class BaseDataModel(BaseBytesModel):
 
 
 class BaseDataGroup(BaseBytesModel):
-    """Abstract base class for data model."""
+    """Concrete base class for a dataclass of data models."""
 
     def to_bytes(self) -> bytes:
         """Return bytes of all data."""

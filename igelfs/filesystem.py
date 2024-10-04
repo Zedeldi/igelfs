@@ -1,6 +1,7 @@
 """Python implementation to handle IGEL filesystems."""
 
 import itertools
+from functools import cached_property
 from pathlib import Path
 from typing import Iterator
 
@@ -60,14 +61,25 @@ class Filesystem:
         """Return total number of sections of image."""
         return get_section_of(self.size)
 
+    def get_valid_sections(self) -> Iterator[int]:
+        """Return generator of valid section indices."""
+        for index in range(self.section_count + 1):
+            try:
+                if self[index]:
+                    yield index
+            except ValueError:
+                continue
+
+    @cached_property
+    def valid_sections(self) -> tuple[int]:
+        """Return tuple of valid section indices and cache result."""
+        return tuple(self.get_valid_sections())
+
     @property
     def sections(self) -> Iterator[Section]:
         """Return generator of sections."""
-        for index in range(self.section_count + 1):
-            try:
-                yield self[index]
-            except ValueError:
-                continue
+        for index in self.get_valid_sections():
+            yield self[index]
 
     @property
     def partitions(self) -> Iterator[Partition]:
