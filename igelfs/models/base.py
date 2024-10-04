@@ -50,7 +50,12 @@ class BaseDataModel(BaseBytesModel):
 
     def verify(self) -> bool:
         """Verify data model integrity."""
-        return self.get_actual_size() == self.get_model_size()
+        result = self.get_actual_size() == self.get_model_size()
+        try:
+            result = result and super().verify()
+        except AttributeError:
+            pass
+        return result
 
     @classmethod
     def from_bytes_to_dict(
