@@ -13,15 +13,14 @@ def test_section_size(section: Section) -> None:
 
 def test_section_header_size(section: Section) -> None:
     """Test size of section header."""
-    header = section.header
-    size = header.get_actual_size()
-    assert size == header.get_model_size()
+    size = section.header.get_actual_size()
+    assert size == section.header.get_model_size()
     assert size == IGF_SECT_HDR_LEN
 
 
 def test_section_data_size(section: Section) -> None:
     """Test size of section data."""
-    size = len(section.data)
+    size = section.get_actual_size() - section.header.get_actual_size()
     assert size == IGF_SECT_DATA_LEN
 
 

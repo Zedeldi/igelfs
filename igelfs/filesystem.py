@@ -83,7 +83,7 @@ class Filesystem:
 
     @property
     def partitions(self) -> Iterator[Partition]:
-        """Return generator of partition headers."""
+        """Return generator of partitions."""
         return (section.partition for section in self.sections if section.partition)
 
     @property
