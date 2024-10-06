@@ -47,7 +47,7 @@ class HashExclude(BaseDataModel):
     -   16-17 => SectionHeader.generation
     -   22-25 => SectionHeader.next_section
 
-    The following bytes are normally excluded for section zero (inclusive):
+    The following bytes are normally excluded for section zero (inclusive, shifted by partition extents):
     -   164-675 => HashHeader.signature
     -   836-836 + (HashHeader.hash_bytes * HashHeader.count_hash) => Section.hash_value
     """
