@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
+from igelfs.constants import BOOTSPLASH_MAGIC
 from igelfs.models.base import BaseDataModel
 
 
@@ -14,6 +15,11 @@ class BootsplashHeader(BaseDataModel):
 
     magic: str  # BOOTSPLASH_MAGIC
     num_splashs: int
+
+    def __post_init__(self) -> None:
+        """Verify magic string on initialisation."""
+        if self.magic != BOOTSPLASH_MAGIC:
+            raise ValueError(f"Unexpected magic '{self.magic}' for bootsplash header")
 
 
 @dataclass

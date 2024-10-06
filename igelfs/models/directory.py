@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from igelfs.constants import DIR_MAX_MINORS, MAX_FRAGMENTS
+from igelfs.constants import DIR_MAX_MINORS, DIRECTORY_MAGIC, MAX_FRAGMENTS
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.mixins import CRCMixin
@@ -70,6 +70,11 @@ class Directory(BaseDataModel, CRCMixin):
     extension: bytes  # unspecified, for future extensions
     partition: DataModelCollection[PartitionDescriptor]
     fragment: DataModelCollection[FragmentDescriptor]
+
+    def __post_init__(self) -> None:
+        """Verify magic string on initialisation."""
+        if self.magic != DIRECTORY_MAGIC:
+            raise ValueError(f"Unexpected magic '{self.magic}' for directory")
 
     def find_partition_by_partition_minor(
         self, partition_minor: int
