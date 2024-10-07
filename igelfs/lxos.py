@@ -36,3 +36,12 @@ class LXOSParser(configparser.ConfigParser):
         """Override get method to strip values of quotes."""
         value = super().get(*args, **kwargs)
         return value.strip('"')
+
+    def get_partition_minor_by_name(self, name: str) -> int | None:
+        """Return partition minor by specified name."""
+        for key in self:
+            if not key.startswith("PART"):
+                continue
+            if self.get(key, "name") == name:
+                return self.getint(key, "number")
+        return None
