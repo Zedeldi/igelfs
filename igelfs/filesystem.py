@@ -106,21 +106,45 @@ class Filesystem:
             fd.seek(offset)
             return fd.read(size)
 
+    def write_bytes(self, data: bytes, offset: int = 0) -> int:
+        """Write bytes to specified offset, returning number of written bytes."""
+        if offset > self.size:
+            raise ValueError("Offset is greater than image size")
+        with open(self.path, "r+b") as fd:
+            fd.seek(offset)
+            return fd.write(data)
+
     def get_section_by_offset(self, offset: int, size: int) -> Section:
         """Return Section of image by offset and size."""
         data = self.get_bytes(offset, size)
         return Section.from_bytes(data)
 
-    def get_section_by_index(self, index: int) -> Section:
-        """Return Section of image by index."""
+    def _get_section_index(self, index: int) -> int:
+        """Return real section index from integer."""
         if index > self.section_count:
             raise IndexError("Index is greater than section count")
         if index < 0:
             # Implement indexing from end, e.g. -1 = last element
-            index = self.section_count - abs(index + 1)
+            return self.section_count - abs(index + 1)
+        return index
+
+    def get_section_by_index(self, index: int) -> Section:
+        """Return Section of image by index."""
+        index = self._get_section_index(index)
         offset = get_start_of_section(index)
         data = self.get_bytes(offset, IGF_SECTION_SIZE)
         return Section.from_bytes(data)
+
+    def write_section_to_index(self, section: Section, index: int) -> int:
+        """Write Section to index of image, returning number of written bytes."""
+        if section.get_actual_size() != IGF_SECTION_SIZE:
+            raise ValueError(
+                "Section does not meet the expected size "
+                f"({section.get_actual_size()} != {IGF_SECTION_SIZE})"
+            )
+        index = self._get_section_index(index)
+        offset = get_start_of_section(index)
+        return self.write_bytes(section.to_bytes(), offset)
 
     def find_sections_by_partition_minor(
         self, partition_minor: int
