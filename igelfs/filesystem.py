@@ -1,6 +1,7 @@
 """Python implementation to handle IGEL filesystems."""
 
 import itertools
+import os
 from functools import cached_property
 from pathlib import Path
 from typing import Iterator
@@ -49,6 +50,9 @@ class Filesystem:
     @property
     def size(self) -> int:
         """Return size of image."""
+        if self.path.is_block_device():
+            with open(self.path, "rb") as fd:
+                return fd.seek(0, os.SEEK_END)
         return self.path.stat().st_size
 
     @property
