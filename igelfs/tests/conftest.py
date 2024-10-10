@@ -36,9 +36,7 @@ def filesystem(pytestconfig) -> Filesystem:
 @pytest.fixture(scope="session")
 def parser(pytestconfig) -> LXOSParser:
     """Return configuration parser for LXOS files."""
-    parser = LXOSParser()
-    parser.read(pytestconfig.getoption("inf"))
-    return parser
+    return LXOSParser(path=pytestconfig.getoption("inf"))
 
 
 @pytest.fixture(scope="session")
@@ -59,7 +57,11 @@ def section(filesystem: Filesystem) -> Section:
     return filesystem[random.choice(filesystem.valid_sections)]
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")  # scope="session" as static across tests
 def hash_(filesystem: Filesystem) -> Hash:
     """Return first Hash instance from filesystem."""
-    return filesystem[1].hash
+    for section in filesystem:
+        if section.hash:
+            return section.hash
+    else:
+        raise ValueError("No hashes found - tests cannot continue")

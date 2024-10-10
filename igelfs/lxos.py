@@ -2,6 +2,7 @@
 
 import configparser
 from collections import OrderedDict
+from pathlib import Path
 from typing import Any
 
 
@@ -21,7 +22,7 @@ class MultiDict(OrderedDict):
 class LXOSParser(configparser.ConfigParser):
     """ConfigParser subclass for LXOS configuration files."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, path: str | Path | None = None, *args, **kwargs) -> None:
         """Initialise instance of configuration parser."""
         super().__init__(
             *args,
@@ -31,17 +32,38 @@ class LXOSParser(configparser.ConfigParser):
             strict=kwargs.pop("strict", False),
             **kwargs,
         )
+        if path:
+            self.read(path)
+
+    @property
+    def partitions(self) -> tuple[str]:
+        """Return tuple of keys for partitions."""
+        return tuple(key for key in self if key.startswith("PART"))
 
     def get(self, *args, **kwargs) -> Any:
         """Override get method to strip values of quotes."""
         value = super().get(*args, **kwargs)
         return value.strip('"')
 
-    def get_partition_minor_by_name(self, name: str) -> int | None:
+    def find_partition_by_values(self, values: dict[str, str]) -> str:
+        """Search for partition with matching values."""
+        for partition in self.partitions:
+            for key, value in values.items():
+                if self.get(partition, key) != value:
+                    break
+            else:
+                return partition
+
+    def find_partition_minor_by_name(self, name: str) -> int | None:
         """Return partition minor by specified name."""
-        for key in self:
-            if not key.startswith("PART"):
-                continue
+        for key in self.partitions:
             if self.get(key, "name") == name:
                 return self.getint(key, "number")
+        return None
+
+    def find_name_by_partition_minor(self, partition_minor: int) -> str | None:
+        """Return name by specified partition minor."""
+        for key in self.partitions:
+            if self.getint(key, "number") == partition_minor:
+                return self.get(key, "name")
         return None

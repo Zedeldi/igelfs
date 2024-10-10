@@ -11,7 +11,7 @@ from igelfs.models import BootsplashHeader
 @pytest.mark.inf
 def test_bootsplash_magic(filesystem: Filesystem, parser: LXOSParser) -> None:
     """Test magic string attribute of bootsplash header."""
-    partition_minor = parser.get_partition_minor_by_name("bspl")
+    partition_minor = parser.find_partition_minor_by_name("bspl")
     if not partition_minor:
         pytest.skip(reason="Bootsplash partition not found")
     bootsplash = filesystem.find_sections_by_directory(partition_minor)
