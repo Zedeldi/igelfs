@@ -14,6 +14,33 @@ Generally, for handling reading from a file, use `igelfs.filesystem.Filesystem`,
 which provides methods to obtain sections and access the data structures within them,
 in an object-oriented way.
 
+### Models
+
+Models are the foundation for converting raw binary data into OOP data structures.
+
+Most of the higher-level models are taken directly from `igelsdk.h`, with added methods to assist data handling.
+
+`BaseBytesModel` provides an abstract base class, with concrete methods for handling bytes, shared across various models.
+
+`BaseDataModel` is the parent class for all higher-level models.
+For these models to be instantiated directly from bytes, they must define `MODEL_ATTRIBUTE_SIZES` as a mapping of dataclass field names to the length of bytes to read.
+
+### Methods
+
+Methods starting with `get` are expected to return a value or raise an exception.
+Those starting with `find` will attempt to search for the specified value, returning
+`None` if not found.
+
+### LXOS
+
+IGEL firmware update archives can be obtained from their [software downloads](https://www.igel.com/software-downloads/) page.
+
+Files matching the naming convention `lxos_X.Y.Z_public.zip` contain a configuration file named `lxos.inf`.
+These files are similar to the INI format, but contain duplicate keys, which would cause [configparser](https://docs.python.org/3/library/configparser.html) to raise an exception (see `strict`), or merge the duplicate sections.
+For more information, see this [Wikipedia](https://en.wikipedia.org/wiki/INI_file#Duplicate_names) page.
+
+`igelfs.lxos` contains a `configparser.ConfigParser` subclass, `LXOSParser`, which can be used to parse this configuration file and get values from it.
+
 ## Installation
 
 After cloning the repository with: `git clone https://github.com/Zedeldi/igelfs.git`,
