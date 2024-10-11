@@ -90,6 +90,18 @@ class Filesystem:
         """Return generator of partitions."""
         return (section.partition for section in self.sections if section.partition)
 
+    @cached_property
+    def partition_minors(self) -> set[int]:
+        """Return set of partition minors."""
+        return {section.header.partition_minor for section in self.sections}
+
+    @property
+    def partition_minors_by_directory(self) -> set[int]:
+        """Return set of partition minors from directory."""
+        partition_minors = {partition.minor for partition in self.directory.partition}
+        partition_minors.remove(0)  # Partition minor 0 does not exist
+        return partition_minors
+
     @property
     def boot_registry(self) -> BootRegistryHeader:
         """Return Boot Registry Header for image."""
@@ -182,7 +194,7 @@ class Filesystem:
     ) -> Section | None:
         """Return Section with matching PartitionHeader by searching linearly."""
         for section in self.sections:
-            if section.partition.header == partition_header:
+            if section.partition and section.partition.header == partition_header:
                 return section
         return None
 
