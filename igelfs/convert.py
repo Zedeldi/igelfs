@@ -19,7 +19,7 @@ class Disk:
 
     def __init__(self, path: str | Path) -> None:
         """Initialize disk instance."""
-        self.path = path
+        self.path = Path(path).absolute()
 
     def allocate(self, size: int, zero: bool = False) -> None:
         """Create empty file of specified size."""
@@ -40,7 +40,7 @@ class Disk:
           - Partitions for each partition in IGEL filesystem
               - Partition names matching partition_minor if lxos_config specified
         """
-        device = parted.getDevice(self.path)
+        device = parted.getDevice(self.path.as_posix())
         disk = parted.freshDisk(device, "gpt")
         for partition_minor in filesystem.partition_minors_by_directory:
             sections = filesystem.find_sections_by_directory(partition_minor)
@@ -72,6 +72,20 @@ class Disk:
                 with open(partition, "wb") as fd:
                     fd.write(payload)
 
+    @classmethod
+    def from_filesystem(
+        cls: type["Disk"],
+        path: str | Path,
+        filesystem: Filesystem,
+        lxos_config: LXOSParser | None = None,
+    ) -> "Disk":
+        """Convert filesystem to disk image and return Disk."""
+        disk = cls(path)
+        if not disk.path.exists():
+            disk.allocate(filesystem.size)
+        disk.partition(filesystem, lxos_config)
+        disk.write(filesystem)
+        return disk
 
 @contextmanager
 def loop_device(path: str | Path) -> Iterator[str]:
