@@ -4,7 +4,7 @@ import itertools
 import os
 from functools import cached_property
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 from igelfs.constants import (
     DIR_OFFSET,
@@ -14,6 +14,7 @@ from igelfs.constants import (
     IGF_SECTION_SIZE,
     SectionSize,
 )
+from igelfs.lxos import LXOSParser
 from igelfs.models import (
     BootRegistryHeader,
     DataModelCollection,
@@ -30,7 +31,7 @@ class Filesystem:
 
     def __init__(self, path: str | Path) -> None:
         """Initialise instance."""
-        self.path = Path(path).absolute()
+        self.path = Path(path).resolve()
 
     def __getitem__(self, index: int | slice) -> Section | DataModelCollection[Section]:
         """Implement getitem method."""
@@ -206,3 +207,18 @@ class Filesystem:
             if partition.header.update_hash == hash_:
                 return partition
         return None
+
+    def get_info(self, lxos_config: LXOSParser | None = None) -> dict[str, Any]:
+        """Return information about filesystem."""
+        info = {
+            "path": self.path.as_posix(),
+            "size": self.size,
+            "section_count": self.section_count,
+            "partition_minors": sorted(self.partition_minors),
+        }
+        if lxos_config:
+            info["partition_names"] = [
+                lxos_config.find_name_by_partition_minor(partition_minor)
+                for partition_minor in info["partition_minors"]
+            ]
+        return info

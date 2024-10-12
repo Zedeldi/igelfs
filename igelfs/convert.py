@@ -19,7 +19,7 @@ class Disk:
 
     def __init__(self, path: str | Path) -> None:
         """Initialize disk instance."""
-        self.path = Path(path).absolute()
+        self.path = Path(path).resolve()
 
     def allocate(self, size: int, zero: bool = False) -> None:
         """Create empty file of specified size."""
@@ -86,6 +86,7 @@ class Disk:
         disk.partition(filesystem, lxos_config)
         disk.write(filesystem)
         return disk
+
 
 @contextmanager
 def loop_device(path: str | Path) -> Iterator[str]:
