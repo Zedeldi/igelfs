@@ -180,6 +180,26 @@ class Section(BaseDataModel, CRCMixin):
         ]
 
     @staticmethod
-    def get_payload_of(sections: DataModelCollection["Section"]) -> bytes:
+    def get_payload_of(
+        sections: DataModelCollection["Section"], include_extents: bool = False
+    ) -> bytes:
         """Return bytes for all sections, excluding headers."""
-        return b"".join(section.data for section in sections)
+        data = b"".join(section.data for section in sections)
+        if not include_extents:
+            data = data[sections[0].partition.get_extents_length() :]
+        return data
+
+    @classmethod
+    def get_extent_of(
+        cls: type["Section"],
+        sections: DataModelCollection["Section"],
+        extent: PartitionExtent,
+    ) -> bytes:
+        """Return bytes for extent of sections."""
+        offset = extent.offset
+        if partition := sections[0].partition:
+            offset -= partition.get_actual_size()
+        if hash_ := sections[0].hash:
+            offset -= hash_.get_actual_size()
+        data = cls.get_payload_of(sections)
+        return data[offset : extent.length]

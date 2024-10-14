@@ -74,9 +74,9 @@ class PartitionExtent(BaseDataModel):
         "name": 8,
     }
 
-    type: int
-    offset: int
-    length: int
+    type: int  # type of extent -> ExtentType
+    offset: int  # offset from start of partition header
+    length: int  # size of data in bytes
     name: bytes  # optional character code
 
     def get_type(self) -> ExtentType:
@@ -122,3 +122,7 @@ class Partition(BaseDataGroup):
     extents: DataModelCollection[PartitionExtent] = field(
         default_factory=DataModelCollection
     )
+
+    def get_extents_length(self) -> int:
+        """Return length of all extents in bytes."""
+        return sum(extent.length for extent in self.extents)
