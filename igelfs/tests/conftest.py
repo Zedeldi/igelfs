@@ -6,7 +6,13 @@ import pytest
 
 from igelfs.filesystem import Filesystem
 from igelfs.lxos import LXOSParser
-from igelfs.models import BootRegistryHeader, Directory, Hash, Section
+from igelfs.models import (
+    BootRegistryHeader,
+    DataModelCollection,
+    Directory,
+    Hash,
+    Section,
+)
 
 
 def pytest_addoption(parser):
@@ -65,3 +71,9 @@ def hash_(filesystem: Filesystem) -> Hash:
             return section.hash
     else:
         raise ValueError("No hashes found - tests cannot continue")
+
+
+@pytest.fixture(scope="session")
+def sys(filesystem: Filesystem) -> DataModelCollection[Section]:
+    """Return sys Section instance from filesystem."""
+    return filesystem.find_sections_by_directory(1)
