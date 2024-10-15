@@ -1,6 +1,7 @@
 """Data models for the boot registry of a filesystem image."""
 
 from dataclasses import dataclass
+from functools import partial
 from typing import ClassVar
 
 from igelfs.models.base import BaseDataModel
@@ -15,6 +16,57 @@ class BootRegistryEntry(BaseDataModel):
 
     flag: int  # first 9 bits next, 1 bit next present, 6 bit len key
     data: bytes
+
+    @property
+    def _flag_bits(self) -> tuple[str, str, str]:
+        """
+        Split flag into tuple of bits.
+
+        9 Bits: Next Block Index
+        1 Bit: Next Block Present
+        6 Bits: Key Length
+        """
+        bits = (
+            bin(
+                int(
+                    self.flag.to_bytes(self.MODEL_ATTRIBUTE_SIZES["flag"], "big").hex(),
+                    base=16,
+                )
+            )
+            .removeprefix("0b")
+            .zfill(16)
+        )
+        return (bits[:9], bits[9:10], bits[10:])
+
+    @property
+    def _flag_values(self) -> tuple[int, int, int]:
+        """Return tuple of integers for flag values."""
+        return tuple(map(partial(int, base=2), self._flag_bits))
+
+    @property
+    def next_block_index(self) -> int:
+        """Return index of next block."""
+        return self._flag_values[0]
+
+    @property
+    def next_block_present(self) -> bool:
+        """Return whether next block is present."""
+        return bool(self._flag_values[1])
+
+    @property
+    def key_length(self) -> int:
+        """Return length of key for entry."""
+        return self._flag_values[2]
+
+    @property
+    def key(self) -> str:
+        """Return key for entry."""
+        return self.data[: self.key_length].decode()
+
+    @property
+    def value(self) -> str:
+        """Return value for entry."""
+        return self.data[self.key_length :].rstrip(b"\x00").decode()
 
 
 @dataclass
@@ -52,3 +104,19 @@ class BootRegistryHeader(BaseDataModel):
     dir: bytes  # directory bitmap (4 bits for each block -> key len)
     reserve: bytes  # placeholder
     entry: DataModelCollection[BootRegistryEntry]  # real data
+
+    def get_entries(self) -> dict[str, str]:
+        """Return dictionary of all boot registry entries."""
+        entries = {}
+        key = None
+        for entry in self.entry:
+            if not entry.value:
+                continue
+            if key:
+                entries[key] += entry.value
+                key = None
+            else:
+                entries[entry.key] = entry.value
+            if entry.next_block_present:
+                key = entry.key
+        return entries
