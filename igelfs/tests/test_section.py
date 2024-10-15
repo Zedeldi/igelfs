@@ -1,6 +1,8 @@
 """Unit tests for a section."""
 
-from igelfs.constants import IGF_SECT_DATA_LEN, IGF_SECT_HDR_LEN
+import magic
+
+from igelfs.constants import IGF_SECT_DATA_LEN, IGF_SECT_HDR_LEN, ExtentType
 from igelfs.models import DataModelCollection, Section
 
 
@@ -37,3 +39,14 @@ def test_section_payload(sys: DataModelCollection[Section]) -> None:
         Section.get_extent_of(sys, extent) for extent in sys[0].partition.extents
     ]
     assert len(data) + sum(len(extent) for extent in extents) == len(data_with_extents)
+
+
+def test_sys_kernel_extent(sys: DataModelCollection[Section]) -> None:
+    """Test getting kernel extent from system sections."""
+    for extent in sys[0].partition.extents:
+        if extent.get_type() == ExtentType.KERNEL:
+            break
+    else:
+        raise ValueError("System partition does not have a kernel extent")
+    kernel = Section.get_extent_of(sys, extent)
+    assert "Linux kernel" in magic.from_buffer(kernel)
