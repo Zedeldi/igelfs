@@ -83,6 +83,10 @@ class PartitionExtent(BaseDataModel):
         """Return ExtentType from PartitionExtent instance."""
         return ExtentType(self.type)
 
+    def get_name(self) -> str:
+        """Return name of PartitionExtent instance as a string."""
+        return self.name.strip(b"\x00").decode()
+
 
 @dataclass
 class PartitionExtents(BaseDataModel):

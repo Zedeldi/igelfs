@@ -201,5 +201,5 @@ class Section(BaseDataModel, CRCMixin):
             offset -= partition.get_actual_size()
         if hash_ := sections[0].hash:
             offset -= hash_.get_actual_size()
-        data = cls.get_payload_of(sections)
-        return data[offset : extent.length]
+        data = cls.get_payload_of(sections, include_extents=True)
+        return data[offset : offset + extent.length]
