@@ -39,6 +39,12 @@ def test_section_payload(sys: DataModelCollection[Section]) -> None:
         Section.get_extent_of(sys, extent) for extent in sys[0].partition.extents
     ]
     assert len(data) + sum(len(extent) for extent in extents) == len(data_with_extents)
+    assert (  # start of actual payload
+        sys[0].partition.get_actual_size()
+        + sys[0].hash.get_actual_size()
+        + sys[0].partition.get_extents_length()
+        == sys[0].partition.header.offset_blocks
+    )
 
 
 def test_sys_kernel_extent(sys: DataModelCollection[Section]) -> None:

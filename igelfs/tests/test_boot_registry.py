@@ -24,3 +24,13 @@ def test_boot_registry_ident_legacy(boot_registry: BootRegistryHeader) -> None:
 def test_boot_registry_magic(boot_registry: BootRegistryHeader) -> None:
     """Test magic attribute of boot registry."""
     assert boot_registry.magic == BOOTREG_MAGIC
+
+
+def test_boot_registry_entries(boot_registry: BootRegistryHeader) -> None:
+    """Test getting entries of boot registry."""
+    entries = boot_registry.get_entries()
+    assert len(entries) == sum(  # count of total entries
+        1
+        for entry in boot_registry.entry
+        if entry.value and not entry.next_block_present
+    )
