@@ -112,11 +112,12 @@ class BootRegistryHeader(BaseDataModel):
         for entry in self.entry:
             if not entry.value:
                 continue
-            if key:
+            if key:  # value continues previous entry
                 entries[key] += entry.value
-                key = None
-            else:
+            else:  # new value
                 entries[entry.key] = entry.value
-            if entry.next_block_present:
-                key = entry.key
+            if entry.next_block_present:  # preserve key for next entry
+                key = key or entry.key
+            else:  # reset key
+                key = None
         return entries
