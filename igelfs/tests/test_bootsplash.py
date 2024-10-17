@@ -2,18 +2,28 @@
 
 import pytest
 
-from igelfs.constants import BOOTSPLASH_MAGIC
-from igelfs.filesystem import Filesystem
-from igelfs.lxos import LXOSParser
-from igelfs.models import BootsplashHeader
+from igelfs.constants import BOOTSPLASH_MAGIC, ExtentType
+from igelfs.models import (
+    BootsplashExtent,
+    BootsplashHeader,
+    DataModelCollection,
+    Section,
+)
 
 
-@pytest.mark.inf
-def test_bootsplash_magic(filesystem: Filesystem, parser: LXOSParser) -> None:
+def test_bootsplash_magic(bspl: DataModelCollection[Section]) -> None:
     """Test magic string attribute of bootsplash header."""
-    partition_minor = parser.find_partition_minor_by_name("bspl")
-    if not partition_minor:
-        pytest.skip(reason="Bootsplash partition not found")
-    bootsplash = filesystem.find_sections_by_directory(partition_minor)
-    bootsplash_header = BootsplashHeader.from_bytes(bootsplash[0].data)
-    assert bootsplash_header.magic == BOOTSPLASH_MAGIC
+    header = BootsplashHeader.from_bytes(bspl[0].data)
+    assert header.magic == BOOTSPLASH_MAGIC
+
+
+def test_bspl_splash_extent(bspl: DataModelCollection[Section]) -> None:
+    """Test getting splash extent from bootsplash sections."""
+    for extent in bspl[0].partition.extents:
+        if extent.get_type() == ExtentType.SPLASH:
+            break
+    else:
+        raise ValueError("Bootsplash partition does not have a splash extent")
+    splash = Section.get_extent_of(bspl, extent)
+    extent = BootsplashExtent.from_bytes(splash)
+    assert len(extent.get_images()) == len(extent.splashes) == extent.header.num_splashs

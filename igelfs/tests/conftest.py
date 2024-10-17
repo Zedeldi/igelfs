@@ -15,6 +15,9 @@ from igelfs.models import (
 )
 
 
+SKIP_PARTITION_MINORS = (241, 247, 254, 255)
+
+
 def pytest_addoption(parser):
     """Parse command-line arguments."""
     parser.addoption(
@@ -60,7 +63,15 @@ def directory(filesystem: Filesystem) -> Directory:
 @pytest.fixture()
 def section(filesystem: Filesystem) -> Section:
     """Return random Section instance from filesystem."""
-    return filesystem[random.choice(filesystem.valid_sections)]
+    section = None
+    while not section:
+        try:
+            section = filesystem[random.randint(1, filesystem.section_count)]
+        except ValueError:
+            continue
+        if section.header.partition_minor in SKIP_PARTITION_MINORS:
+            section = None
+    return section
 
 
 @pytest.fixture(scope="session")  # scope="session" as static across tests
@@ -75,5 +86,11 @@ def hash_(filesystem: Filesystem) -> Hash:
 
 @pytest.fixture(scope="session")
 def sys(filesystem: Filesystem) -> DataModelCollection[Section]:
-    """Return sys Section instance from filesystem."""
+    """Return sys Section instances from filesystem."""
     return filesystem.find_sections_by_directory(1)
+
+
+@pytest.fixture(scope="session")
+def bspl(filesystem: Filesystem) -> DataModelCollection[Section]:
+    """Return bspl Section instances from filesystem."""
+    return filesystem.find_sections_by_directory(23)
