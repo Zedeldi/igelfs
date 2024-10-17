@@ -40,7 +40,12 @@ class BootRegistryEntry(BaseDataModel):
 
     @property
     def _flag_values(self) -> tuple[int, int, int]:
-        """Return tuple of integers for flag values."""
+        """
+        Return tuple of integers for flag values.
+
+        Tuple consists of next block index, next block present, key length
+        as integers.
+        """
         return tuple(map(partial(int, base=2), self._flag_bits))
 
     @property
