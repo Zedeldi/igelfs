@@ -214,7 +214,7 @@ class Filesystem:
             "path": self.path.as_posix(),
             "size": self.size,
             "section_count": self.section_count,
-            "partition_minors": sorted(self.partition_minors),
+            "partition_minors": sorted(self.partition_minors_by_directory),
         }
         if lxos_config:
             info["partition_names"] = [

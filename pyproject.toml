@@ -42,5 +42,6 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 markers = [
-    "inf: tests require LXOS configuration file"
+  "inf: tests require LXOS configuration file",
+  "slow: tests take a while to complete",
 ]
