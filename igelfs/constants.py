@@ -59,6 +59,10 @@ class ExtentType(IntEnum):
     SQUASHFS = 5
     WRITEABLE = 6
     LOGIN = 7
+    SEC_KERNEL = 8
+    DEVICE_TREE = 9
+    APPLICATION = 10
+    LICENSE = 11
 
 
 LOG2_SECT_SIZE = SectionSize.SECT_SIZE_256K
