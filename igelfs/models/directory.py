@@ -76,6 +76,13 @@ class Directory(BaseDataModel, CRCMixin):
         if self.magic != DIRECTORY_MAGIC:
             raise ValueError(f"Unexpected magic '{self.magic}' for directory")
 
+    @property
+    def partition_minors(self) -> set[int]:
+        """Return set of partition minors from directory."""
+        partition_minors = {partition.minor for partition in self.partition}
+        partition_minors.remove(0)  # Partition minor 0 does not exist
+        return partition_minors
+
     def find_partition_by_partition_minor(
         self, partition_minor: int
     ) -> PartitionDescriptor | None:
@@ -94,3 +101,11 @@ class Directory(BaseDataModel, CRCMixin):
         if not (partition := self.find_partition_by_partition_minor(partition_minor)):
             return None
         return self.fragment[partition.first_fragment]
+
+    def get_first_sections(self) -> dict[int, int]:
+        """Return mapping of partition minors to first sections."""
+        info = {
+            minor: self.find_fragment_by_partition_minor(minor).first_section
+            for minor in sorted(self.partition_minors)
+        }
+        return info

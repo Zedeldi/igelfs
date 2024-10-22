@@ -99,9 +99,7 @@ class Filesystem:
     @property
     def partition_minors_by_directory(self) -> set[int]:
         """Return set of partition minors from directory."""
-        partition_minors = {partition.minor for partition in self.directory.partition}
-        partition_minors.remove(0)  # Partition minor 0 does not exist
-        return partition_minors
+        return self.directory.partition_minors
 
     @property
     def boot_registry(self) -> BootRegistryHeader:

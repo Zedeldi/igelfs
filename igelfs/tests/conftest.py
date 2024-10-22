@@ -14,7 +14,6 @@ from igelfs.models import (
     Section,
 )
 
-
 SKIP_PARTITION_MINORS = (241, 247, 254, 255)
 
 
