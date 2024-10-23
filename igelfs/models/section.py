@@ -166,9 +166,24 @@ class Section(BaseDataModel, CRCMixin):
             fd.seek(0)
             return fd.read()
 
-    def calculate_hash(self, hash_: Hash) -> bytes:
-        """Return hash of section excluding specified ranges."""
-        data = self._to_bytes_excluding_by_range(hash_)
+    def calculate_hash(self, hash_: Hash, section_in_minor: int | None = None) -> bytes:
+        """
+        Return hash of section excluding specified ranges.
+
+        Due to an issue with the igelupdate utility up to (but not including)
+        version 11.02.100, the current partition minor is written into the
+        section_in_minor field, instead of keeping the strictly increasing
+        counter (which is in there during signage).
+
+        To resolve this issue, manually specify the section_in_minor to
+        change this value before calculating the hash.
+        """
+        if section_in_minor is not None:
+            section = Section.from_bytes(self.to_bytes())
+            section.header.section_in_minor = section_in_minor
+            data = section._to_bytes_excluding_by_range(hash_)
+        else:
+            data = self._to_bytes_excluding_by_range(hash_)
         return hash_.calculate_hash(data)
 
     @staticmethod

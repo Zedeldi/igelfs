@@ -168,6 +168,10 @@ class Hash(BaseDataGroup):
             ]
         ]
 
+    def get_hash(self, index: int) -> bytes:
+        """Return hash for specified index."""
+        return self.get_hashes()[index]
+
     def calculate_hash(self, data: bytes) -> bytes:
         """Return hash of data."""
         return hashlib.blake2b(data, digest_size=self.header.hash_bytes).digest()
