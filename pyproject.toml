@@ -16,16 +16,14 @@ maintainers = [
 ]
 dependencies = [
   "pillow",
+  "python-magic",
   "rsa",
 ]
 requires-python = ">= 3.10"
 
 [project.optional-dependencies]
 convert = ["pyparted"]
-tests = [
-  "pytest",
-  "python-magic",
-]
+tests = ["pytest"]
 
 [project.urls]
 Homepage = "https://github.com/Zedeldi/igelfs"

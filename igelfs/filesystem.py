@@ -212,11 +212,18 @@ class Filesystem:
             "path": self.path.as_posix(),
             "size": self.size,
             "section_count": self.section_count,
-            "partition_minors": sorted(self.partition_minors_by_directory),
+            "partitions": {
+                partition_minor: {}
+                for partition_minor in sorted(self.partition_minors_by_directory)
+            },
         }
-        if lxos_config:
-            info["partition_names"] = [
-                lxos_config.find_name_by_partition_minor(partition_minor)
-                for partition_minor in info["partition_minors"]
-            ]
+        first_sections = self.directory.get_first_sections()
+        for partition_minor, partition_info in info["partitions"].items():
+            sections = self.find_sections_by_directory(partition_minor)
+            partition_info.update(Section.get_info_of(sections))
+            partition_info["first_section"] = first_sections.get(partition_minor)
+            if lxos_config:
+                partition_info["name"] = lxos_config.find_name_by_partition_minor(
+                    partition_minor
+                )
         return info

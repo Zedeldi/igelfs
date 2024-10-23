@@ -2,7 +2,9 @@
 
 import io
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import Any, ClassVar
+
+import magic
 
 from igelfs.constants import (
     IGF_SECT_DATA_LEN,
@@ -179,6 +181,7 @@ class Section(BaseDataModel, CRCMixin):
         change this value before calculating the hash.
         """
         if section_in_minor is not None:
+            # Create a copy of the section instance
             section = Section.from_bytes(self.to_bytes())
             section.header.section_in_minor = section_in_minor
             data = section._to_bytes_excluding_by_range(hash_)
@@ -218,3 +221,44 @@ class Section(BaseDataModel, CRCMixin):
             offset -= hash_.get_actual_size()
         data = cls.get_payload_of(sections, include_extents=True)
         return data[offset : offset + extent.length]
+
+    @classmethod
+    def get_info_of(
+        cls: type["Section"], sections: DataModelCollection["Section"]
+    ) -> dict[str, Any]:
+        """Return information for a collection of sections."""
+        partition = sections[0].partition
+        hash_ = sections[0].hash
+        payload = cls.get_payload_of(sections)
+        info = {
+            "section_count": len(sections),
+            "size": sections.get_actual_size(),
+            "payload": {
+                "size": len(payload),
+                "type": magic.from_buffer(payload),
+            },
+            "verify": {
+                "checksum": all(section.verify() for section in sections),
+                "hash": None,
+                "signature": None,
+            },
+            "update_hash": None,
+            "extents": [],
+        }
+        if hash_:
+            info["verify"]["hash"] = all(
+                section.calculate_hash(hash_, index) == hash_.get_hash(index)
+                for index, section in enumerate(sections)
+            )
+            info["verify"]["signature"] = hash_.verify_signature()
+        if partition:
+            info["update_hash"] = partition.header.update_hash.hex()
+            for extent in partition.extents:
+                extent_payload = cls.get_extent_of(sections, extent)
+                extent_info = {
+                    "name": extent.get_name(),
+                    "type": magic.from_buffer(extent_payload),
+                    "size": len(extent_payload),
+                }
+                info["extents"].append(extent_info)
+        return info
