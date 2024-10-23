@@ -206,6 +206,28 @@ class Filesystem:
                 return partition
         return None
 
+    def extract_to(
+        self, path: str | Path, lxos_config: LXOSParser | None = None
+    ) -> None:
+        """Extract all partitions and extents to path."""
+        path = Path(path).resolve()
+        if not path.exists():
+            path.mkdir(exist_ok=True)
+        for partition_minor in self.partition_minors_by_directory:
+            sections = self.find_sections_by_directory(partition_minor)
+            partition = sections[0].partition
+            name = f"{partition_minor}"
+            if lxos_config:
+                name += f".{lxos_config.find_name_by_partition_minor(partition_minor)}"
+            payload = Section.get_payload_of(sections)
+            with open(path / name, "wb") as fd:
+                fd.write(payload)
+            if partition:
+                for index, extent in enumerate(partition.extents):
+                    payload = Section.get_extent_of(sections, extent)
+                    with open(path / f"{name}.{index}.{extent.get_name()}", "wb") as fd:
+                        fd.write(payload)
+
     def get_info(self, lxos_config: LXOSParser | None = None) -> dict[str, Any]:
         """Return information about filesystem."""
         info = {
