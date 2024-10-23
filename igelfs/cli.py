@@ -22,7 +22,7 @@ def get_parser() -> ArgumentParser:
 
 
 def main() -> None:
-    """Main entry-point for command-line interface."""
+    """Parse arguments and print filesystem information."""
     parser = get_parser()
     args = parser.parse_args()
     filesystem = Filesystem(args.path)

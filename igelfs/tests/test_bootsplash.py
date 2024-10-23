@@ -1,7 +1,5 @@
 """Unit tests for the bootsplash models."""
 
-import pytest
-
 from igelfs.constants import BOOTSPLASH_MAGIC, ExtentType
 from igelfs.models import (
     BootsplashExtent,
