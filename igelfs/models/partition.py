@@ -62,6 +62,10 @@ class PartitionHeader(BaseDataModel):
         )
         return PartitionType(type_ & 0xFF)
 
+    def get_name(self) -> str | None:
+        """Return name of partition or None."""
+        return self.name.rstrip(b"\x00").decode() or None
+
 
 @dataclass
 class PartitionExtent(BaseDataModel):

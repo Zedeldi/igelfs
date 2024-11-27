@@ -7,7 +7,7 @@ from typing import ClassVar
 import rsa
 
 from igelfs.constants import HASH_HDR_IDENT
-from igelfs.keys import HSM_PUBLIC_KEY
+from igelfs.keys import IGEL_PUBLIC_KEYS
 from igelfs.models.base import BaseDataGroup, BaseDataModel
 from igelfs.models.collections import DataModelCollection
 
@@ -179,10 +179,13 @@ class Hash(BaseDataGroup):
     def verify_signature(self) -> bool:
         """Verify signature of hash block (excludes + values)."""
         data = self.excludes.to_bytes() + self.values
-        try:
-            return (
-                rsa.verify(data, self.header.signature[:256], HSM_PUBLIC_KEY)
-                == "SHA-256"
-            )
-        except rsa.VerificationError:
+        for public_key in IGEL_PUBLIC_KEYS:
+            try:
+                return (
+                    rsa.verify(data, self.header.signature.rstrip(b"\x00"), public_key)
+                    == "SHA-256"
+                )
+            except rsa.VerificationError:
+                pass
+        else:
             return False

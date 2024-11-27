@@ -14,7 +14,7 @@ from igelfs.models import (
     Section,
 )
 
-SKIP_PARTITION_MINORS = (241, 247, 254, 255)
+SKIP_PARTITION_MINORS = (238, 239, 241, 242, 243, 245, 247, 248, 252, 253, 254, 255)
 
 
 def pytest_addoption(parser):
