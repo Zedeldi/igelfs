@@ -28,6 +28,9 @@ tests = ["pytest"]
 [project.urls]
 Homepage = "https://github.com/Zedeldi/igelfs"
 
+[project.scripts]
+igelfs-cli = "igelfs.cli:main"
+
 [tool.isort]
 profile = "black"
 
