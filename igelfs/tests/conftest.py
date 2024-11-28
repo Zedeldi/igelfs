@@ -30,7 +30,7 @@ def pytest_collection_modifyitems(config, items):
     """Configure tests based on parsed arguments."""
     if config.getoption("inf"):
         return
-    skip_inf = pytest.mark.skip(reason="firmware information file not provided")
+    skip_inf = pytest.mark.skip(reason="Firmware information file not provided")
     for item in items:
         if "inf" in item.keywords:
             item.add_marker(skip_inf)
@@ -83,7 +83,7 @@ def hash_(filesystem: Filesystem) -> Hash:
         if section.hash:
             return section.hash
     else:
-        raise ValueError("No hashes found - tests cannot continue")
+        pytest.skip("No hashes found")
 
 
 @pytest.fixture(scope="session")

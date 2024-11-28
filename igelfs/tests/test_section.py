@@ -1,6 +1,7 @@
 """Unit tests for a section."""
 
 import magic
+import pytest
 
 from igelfs.constants import IGF_SECT_DATA_LEN, IGF_SECT_HDR_LEN, ExtentType
 from igelfs.models import DataModelCollection, Section
@@ -38,10 +39,12 @@ def test_section_payload(sys: DataModelCollection[Section]) -> None:
     extents = [
         Section.get_extent_of(sys, extent) for extent in sys[0].partition.extents
     ]
+    # Legacy filesystems (<= OS 10) do not have hash blocks
+    hash_size = sys[0].hash.get_actual_size() if sys[0].hash else 0
     assert len(data) + sum(len(extent) for extent in extents) == len(data_with_extents)
     assert (  # start of actual payload
         sys[0].partition.get_actual_size()
-        + sys[0].hash.get_actual_size()
+        + hash_size
         + sys[0].partition.get_extents_length()
         == sys[0].partition.header.offset_blocks
     )
@@ -53,6 +56,7 @@ def test_sys_kernel_extent(sys: DataModelCollection[Section]) -> None:
         if extent.get_type() == ExtentType.KERNEL:
             break
     else:
-        raise ValueError("System partition does not have a kernel extent")
+        # UDC and OSC ISOs store kernel as a separate bzImage file
+        pytest.skip("System partition does not have a kernel extent")
     kernel = Section.get_extent_of(sys, extent)
     assert "Linux kernel" in magic.from_buffer(kernel)
