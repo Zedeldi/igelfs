@@ -10,9 +10,10 @@ Python implementation of the IGEL filesystem.
 
 `igelfs.models` contains several dataclasses to represent data structures within the filesystem.
 
-Generally, for handling reading from a file, use `igelfs.filesystem.Filesystem`,
+Generally, for handling reading from a file/device, use `igelfs.filesystem.Filesystem`,
 which provides methods to obtain sections and access the data structures within them,
 in an object-oriented way.
+`Filesystem` also provides simple methods to write bytes/sections.
 
 ### Models
 
@@ -25,30 +26,125 @@ Most of the higher-level models are taken directly from `igelsdk.h`, with added 
 `BaseDataModel` is the parent class for all higher-level models.
 For these models to be instantiated directly from bytes, they must define `MODEL_ATTRIBUTE_SIZES` as a mapping of dataclass field names to the length of bytes to read.
 
+#### Section
+
+-   Stores section header, partition block, hash block and payload
+-   Contains a `__post_init__` magic dataclass method to parse payload into additional data groups
+-   Has methods to calculate hash, split into or extract data, such as partition extents, from sections
+
+#### Partition
+
+-   Stores partition header and extent information; the actual extent payload is stored at the beginning of the section payload
+-   Provides methods to parse partition and extent information
+
+#### Hash
+
+-   Data group to store hash header, excludes and values
+-   Implements calculating hashes, getting digest values and verifying signatures
+
+#### Boot Registry
+
+-   Stores basic boot information and boot registry entries
+-   Legacy format uses `\n`-separated `key=value` pairs, terminated by `EOF`
+-   New format uses fixed-size entry models with a 2-byte flag to indicate size and continuation
+
+#### Directory
+
+-   Stores directory information to look-up locations of partitions efficiently, without linearly searching the entire filesystem
+-   Find:
+    -   Partition descriptor by partition minor
+    -   Fragment descriptor by partition descriptor attribute (`first_fragment`)
+    -   First section of partition by fragment descriptor attribute (`first_section`)
+
+#### Bootsplash
+
+-   Stores extent information from bootsplash partition
+-   Contains bootsplash header, list of bootsplash information models and payload
+-   Provides method to obtain [`PIL.Image.Image`](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image) instances from payload
+
 ### Methods
 
 Methods starting with `get` are expected to return a value or raise an exception.
 Those starting with `find` will attempt to search for the specified value, returning
 `None` if not found.
 
-### LXOS
+### LXOS/OSIV
 
 IGEL firmware update archives can be obtained from their [software downloads](https://www.igel.com/software-downloads/) page.
 
 Files matching the naming convention `lxos_X.Y.Z_public.zip` contain a configuration file named `lxos.inf`.
+In the case of OS 10/UDC, this configuration file is called `osiv.inf`.
+
 These files are similar to the INI format, but contain duplicate keys, which would cause [configparser](https://docs.python.org/3/library/configparser.html) to raise an exception (see `strict`), or merge the duplicate sections.
 For more information, see this [Wikipedia](https://en.wikipedia.org/wiki/INI_file#Duplicate_names) page.
 
 `igelfs.lxos` contains a `configparser.ConfigParser` subclass, `LXOSParser`, which can be used to parse this configuration file and get values from it.
 
+### Verification
+
+The integrity of a section is confirmed by the CRC32 checksum in the section header and the hash block (if present).
+
+When setting these values, it must be calculated in the following order: hash, signature (depends on hash), CRC32 (influenced by previous values).
+
+#### Checksum
+
+The CRC32 checksum is calculated from all of the bytes in a section, starting at `CRC_OFFSET`, which excludes the checksum value itself from the input.
+
+#### Hash
+
+The hash values are calculated using the [BLAKE2b](https://en.wikipedia.org/wiki/BLAKE_(hash_function)) algorithm with a digest size specified in `hash_bytes`, from all sections in a partition, excluding the indicies specified by the ranges in the hash excludes.
+The start, end and size are based on absolute addresses not relative to section or partition headers.
+Excluded bytes are replaced with null bytes (`\x00`).
+
+Please see the docstring below from `igelfs.models.hash.HashExclude` for more information:
+
+> The following bytes are normally excluded for each section (inclusive):
+> -   0-3 => `SectionHeader.crc`
+> -   16-17 => `SectionHeader.generation`
+> -   22-25 => `SectionHeader.next_section`
+>
+> The following bytes are normally excluded for section zero (inclusive, shifted by partition extents):
+> -   164-675 => `HashHeader.signature`
+> -   836-836 + (`HashHeader.hash_bytes` * `HashHeader.count_hash`) => `Section.hash_value`
+
+Similarly to the `CRC_OFFSET`, the hash excludes serve to remove dynamic values from the hash input;
+only the payload and metadata of the section is verified.
+
+#### Signature
+
+The hash block also contains a signature of all hash values and excludes, using [SHA-256](https://en.wikipedia.org/wiki/SHA-2).
+The public keys to verify these signatures can be found in `igelfs.keys`.
+
+This confirms the authenticity of the data, and prevents modifying the hash values.
+
 ## Installation
 
-After cloning the repository with: `git clone https://github.com/Zedeldi/igelfs.git`,
-install dependencies with `pip install .` or `pip install -r requirements.txt`.
+1.  Clone the repository: `git clone https://github.com/Zedeldi/igelfs.git`
+2.  Install project: `pip install .`
+3.  **or** install dependencies: `pip install -r requirements.txt`
 
-#### Libraries:
+### Libraries
 
--   [RSA](https://pypi.org/project/rsa/) - signature verification
+-   [rsa](https://pypi.org/project/rsa/) - signature verification
+-   [pillow](https://pypi.org/project/pillow/) - bootsplash images
+-   [python-magic](https://pypi.org/project/python-magic/) - payload identification
+-   [pyparted](https://pypi.org/project/pyparted/) - disk conversion (optional)
+-   [pytest](https://pypi.org/project/pytest/) - testing, see [below](#testing)
+
+## Usage
+
+If the project is installed: `igelfs-cli --help`
+
+Otherwise, you can run the module as a script: `python -m igelfs.cli --help`
+
+## Testing
+
+Tests rely on the `pytest` testing framework.
+
+To test the project (or the sanity of a filesystem image), use:
+`python -m pytest --image="path/to/filesystem" --inf="path/to/lxos.inf" igelfs`
+
+Specify `-m "not slow"` to skip slow tests.
 
 ## Credits
 
