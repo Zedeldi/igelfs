@@ -1,9 +1,11 @@
 """Data models for the boot registry of a filesystem image."""
 
+from abc import abstractmethod
 from dataclasses import dataclass
 from functools import partial
 from typing import ClassVar
 
+from igelfs.constants import BOOTREG_MAGIC, IGEL_BOOTREG_SIZE
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 
@@ -74,8 +76,17 @@ class BootRegistryEntry(BaseDataModel):
         return self.data[self.key_length :].rstrip(b"\x00").decode()
 
 
+class BaseBootRegistryHeader(BaseDataModel):
+    """Base class for boot registry header."""
+
+    @abstractmethod
+    def get_entries(self) -> dict[str, str]:
+        """Return dictionary of all boot registry entries."""
+        ...
+
+
 @dataclass
-class BootRegistryHeader(BaseDataModel):
+class BootRegistryHeader(BaseBootRegistryHeader):
     """
     Dataclass to handle boot registry header data.
 
@@ -126,3 +137,54 @@ class BootRegistryHeader(BaseDataModel):
             else:  # reset key
                 key = None
         return entries
+
+
+@dataclass
+class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
+    """
+    Dataclass to handle legacy boot registry header data.
+
+    The boot registry resides in section #0 of the image.
+    """
+
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
+        "ident_legacy": 17,
+        "entry": IGEL_BOOTREG_SIZE - 17,
+    }
+
+    ident_legacy: str
+    entry: bytes
+
+    def get_entries(self) -> dict[str, str]:
+        """Return dictionary of all boot registry entries."""
+        entries = {}
+        for entry in self.entry.decode().splitlines():
+            if not entry:
+                continue
+            if entry == "EOF":
+                break
+            key, value = entry.split("=")
+            entries[key] = value
+        return entries
+
+
+class BootRegistryHeaderFactory:
+    """Class to handle returning the correct boot registry header model."""
+
+    @staticmethod
+    def is_legacy_boot_registry(data: bytes) -> bool:
+        """Return whether bytes represent a legacy boot registry header."""
+        ident_legacy = BootRegistryHeader.MODEL_ATTRIBUTE_SIZES["ident_legacy"]
+        magic = BootRegistryHeader.MODEL_ATTRIBUTE_SIZES["magic"]
+        if data[ident_legacy : ident_legacy + magic].decode() == BOOTREG_MAGIC:
+            return False
+        return True
+
+    @classmethod
+    def from_bytes(
+        cls: type["BootRegistryHeaderFactory"], data: bytes
+    ) -> BootRegistryHeader | BootRegistryHeaderLegacy:
+        """Return appropriate boot registry header model from bytes."""
+        if cls.is_legacy_boot_registry(data):
+            return BootRegistryHeaderLegacy.from_bytes(data)
+        return BootRegistryHeader.from_bytes(data)

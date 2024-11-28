@@ -17,6 +17,8 @@ from igelfs.constants import (
 from igelfs.lxos import LXOSParser
 from igelfs.models import (
     BootRegistryHeader,
+    BootRegistryHeaderFactory,
+    BootRegistryHeaderLegacy,
     DataModelCollection,
     Directory,
     Partition,
@@ -102,10 +104,10 @@ class Filesystem:
         return self.directory.partition_minors
 
     @property
-    def boot_registry(self) -> BootRegistryHeader:
+    def boot_registry(self) -> BootRegistryHeader | BootRegistryHeaderLegacy:
         """Return Boot Registry Header for image."""
         data = self.get_bytes(IGEL_BOOTREG_OFFSET, IGEL_BOOTREG_SIZE)
-        return BootRegistryHeader.from_bytes(data)
+        return BootRegistryHeaderFactory.from_bytes(data)
 
     @property
     def directory(self) -> Directory:

@@ -8,6 +8,7 @@ from igelfs.filesystem import Filesystem
 from igelfs.lxos import LXOSParser
 from igelfs.models import (
     BootRegistryHeader,
+    BootRegistryHeaderLegacy,
     DataModelCollection,
     Directory,
     Hash,
@@ -48,8 +49,10 @@ def parser(pytestconfig) -> LXOSParser:
 
 
 @pytest.fixture(scope="session")
-def boot_registry(filesystem: Filesystem) -> BootRegistryHeader:
-    """Return BootRegistryHeader instance."""
+def boot_registry(
+    filesystem: Filesystem,
+) -> BootRegistryHeader | BootRegistryHeaderLegacy:
+    """Return BootRegistryHeader or BootRegistryHeaderLegacy instance."""
     return filesystem.boot_registry
 
 
