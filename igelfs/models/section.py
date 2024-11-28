@@ -10,7 +10,6 @@ from igelfs.constants import (
     IGF_SECT_DATA_LEN,
     IGF_SECT_HDR_LEN,
     IGF_SECT_HDR_MAGIC,
-    IGF_SECT_HDR_MAGIC_OS12,
     SECTION_IMAGE_CRC_START,
 )
 from igelfs.models.base import BaseDataModel
@@ -49,7 +48,7 @@ class SectionHeader(BaseDataModel):
 
     def __post_init__(self) -> None:
         """Verify magic number on initialisation."""
-        if self.magic not in (IGF_SECT_HDR_MAGIC, IGF_SECT_HDR_MAGIC_OS12):
+        if self.magic not in IGF_SECT_HDR_MAGIC:
             raise ValueError(f"Unexpected magic '{self.magic}' for section header")
 
 
