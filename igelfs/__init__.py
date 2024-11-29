@@ -18,12 +18,16 @@ IGEL FS has the following layout:
     - Fragment Descriptors
 - Section #1, Partition Minor #1
   - Section Header
-  - Partition Header
-  - Partition Extents  } PartitionHeader.n_extents
-  - Hash Header        ]
-  - Hash Excludes      } Optional
-  - Hash Values        ]
+  - Partition Block
+    - Partition Header
+    - Partition Extents * PartitionHeader.n_extents
+  - Hash Block, optional
+    - Hash Header
+    - Hash Excludes * HashHeader.count_excludes
+    - Hash Values => HashHeader.hash_block_size
   - Partition Data
+    - Extents
+    - Payload
 - Section #2, Partition Minor #1
   - Section Header
   - Partition Data

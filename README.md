@@ -15,6 +15,52 @@ which provides methods to obtain sections and access the data structures within 
 in an object-oriented way.
 `Filesystem` also provides simple methods to write bytes/sections.
 
+### Filesystem
+
+Once installed, there are usually three partitions on UEFI systems, in the following format:
+
+-   Partition #1
+    -   IGEL FS
+-   Partition #2
+    -   FAT32, ESP #1
+-   Partition #3
+    -   FAT32, ESP #2
+
+For OS 12, it appears the IGEL FS partition is #4, and partition #1 is small (~9 MiB) and filled with null bytes.
+
+Please see the following snippet from `igelfs.__init__` for a description of the filesystem structure:
+
+> -   Section #0
+>     -   Boot Registry
+>         -   Boot Registry Entries
+>     - Directory
+>         -   Partition Descriptors
+>         -   Fragment Descriptors
+> -   Section #1, Partition Minor #1
+>     -   Section Header
+>     -   Partition Block
+>         -   Partition Header
+>         -   Partition Extents * `PartitionHeader.n_extents`
+>     -   Hash Block, optional
+>         -   Hash Header
+>         -   Hash Excludes * `HashHeader.count_excludes`
+>         -   Hash Values => `HashHeader.hash_block_size`
+>     -   Partition Data
+>         - Extents
+>         - Payload
+> -   Section #2, Partition Minor #1
+>     -   Section Header
+>     -   Partition Data
+> -   Section #3, Partition Minor #2...
+>
+> In short, all partitions are stored in sections as a linked list.
+> Each section has a section header, which contains the partition minor (ID)
+> and the next section for the partition until `0xffffffff`.
+> The first section of a partition also contains a partition header
+> and optionally a hash header.
+
+For more information about these data structures, see [models](#models).
+
 ### Models
 
 Models are the foundation for converting raw binary data into OOP data structures.
@@ -34,7 +80,7 @@ For these models to be instantiated directly from bytes, they must define `MODEL
 
 #### Partition
 
--   Stores partition header and extent information; the actual extent payload is stored at the beginning of the section payload
+-   Stores partition header and extent information; the actual extent payload is stored at the beginning of the section payload, and can span multiple sections
 -   Provides methods to parse partition and extent information
 
 #### Hash
