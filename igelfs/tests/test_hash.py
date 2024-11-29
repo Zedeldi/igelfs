@@ -23,3 +23,17 @@ def test_hash_excludes_verify(hash_: Hash) -> None:
 def test_hash_signature(hash_: Hash) -> None:
     """Test verification of hash signature."""
     assert hash_.verify_signature()
+
+
+def test_hash_excludes_count(hash_: Hash) -> None:
+    """Test hash excludes size matches count in header."""
+    assert hash_.header.count_excludes == len(hash_.excludes)
+
+
+def test_hash_values_size(hash_: Hash) -> None:
+    """Test hash values size matches header information."""
+    assert (
+        hash_.header.count_hash * hash_.header.hash_bytes
+        == hash_.header.hash_block_size
+        == len(hash_.values)
+    )
