@@ -163,6 +163,19 @@ class Filesystem:
         offset = get_start_of_section(index)
         return self.write_bytes(section.to_bytes(), offset)
 
+    def write_sections_at_index(
+        self, sections: DataModelCollection[Section], index: int
+    ) -> int:
+        """
+        Write collection of sections to image contiguously, starting at index.
+
+        Returns total number of written bytes.
+        """
+        return sum(
+            self.write_section_to_index(section, index + offset)
+            for offset, section in enumerate(sections)
+        )
+
     def find_sections_by_partition_minor(
         self, partition_minor: int
     ) -> DataModelCollection[Section]:

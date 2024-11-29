@@ -17,3 +17,7 @@ class CRCMixin:
     def verify(self) -> bool:
         """Verify CRC32 checksum."""
         return self.crc == self.get_crc()
+
+    def update_crc(self) -> None:
+        """Update CRC32 checksum to current value."""
+        self.crc = self.get_crc()

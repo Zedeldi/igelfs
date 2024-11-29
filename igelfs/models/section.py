@@ -1,5 +1,6 @@
 """Data models for a section."""
 
+import copy
 import io
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
@@ -115,6 +116,11 @@ class Section(BaseDataModel, CRCMixin):
         """Return CRC32 checksum from header."""
         return self.header.crc
 
+    @crc.setter
+    def crc(self, value: int):
+        """Set CRC32 checksum in header to value."""
+        self.header.crc = value
+
     @property
     def end_of_chain(self) -> bool:
         """Return whether this section is the last in the chain."""
@@ -190,12 +196,56 @@ class Section(BaseDataModel, CRCMixin):
         return hash_.calculate_hash(data)
 
     @staticmethod
-    def split_into_sections(data: bytes) -> list[bytes]:
-        """Split bytes into list of fixed-length chunks."""
-        return [
+    def split_into_sections(data: bytes, pad: bool = False) -> list[bytes]:
+        """
+        Split bytes into list of fixed-length chunks.
+
+        If pad is True, pad the last section with null bytes to fit length.
+        """
+        sections = [
             data[i : i + IGF_SECT_DATA_LEN]
             for i in range(0, len(data), IGF_SECT_DATA_LEN)
         ]
+        if pad:
+            sections[-1] = sections[-1].ljust(IGF_SECT_DATA_LEN, b"\x00")
+        return sections
+
+    @classmethod
+    def set_payload_of(
+        cls: type["Section"],
+        sections: DataModelCollection["Section"],
+        payload: bytes,
+        preserve_extents: bool = True,
+    ) -> DataModelCollection["Section"]:
+        """
+        Set payload for collection of sections to bytes in payload.
+
+        If preserve_extents is True, extent payloads will not be overwritten.
+        """
+        # Copy list of sections to prevent changing original data
+        sections = copy.deepcopy(sections)
+        if preserve_extents and (partition := sections[0].partition):
+            for extent in sorted(
+                partition.extents, key=lambda extent: extent.offset, reverse=True
+            ):
+                payload = Section.get_extent_of(sections, extent) + payload
+        if hash_ := sections[0].hash:
+            payload = hash_.to_bytes() + payload
+            sections[0].hash = None
+        if partition := sections[0].partition:
+            payload = partition.to_bytes() + payload
+            sections[0].partition = None
+        data = cls.split_into_sections(payload, pad=True)
+        if len(data) > len(sections):
+            raise ValueError(
+                f"Payload is too large '{len(data)}' to fit inside sections '{len(sections)}'"
+            )
+        for index, section in enumerate(data):
+            sections[index].data = section
+            sections[index].update_crc()
+        # Recreate section instance to re-add partition and hash attributes
+        sections[0] = Section.from_bytes(sections[0].to_bytes())
+        return sections
 
     @staticmethod
     def get_payload_of(
