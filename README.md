@@ -163,6 +163,38 @@ The public keys to verify these signatures can be found in `igelfs.keys`.
 
 This confirms the authenticity of the data, and prevents modifying the hash values.
 
+### Boot Process
+
+The boot process of IGEL OS is important when considering the structure of the system file system.
+
+#### Kernel
+
+For example, once installed, the Linux kernel is stored as a partition extent of the `sys` (partition minor 1) partition.
+
+When querying the file type, you should receive output similar to the following:
+
+`Linux kernel x86 boot executable bzImage, version 4.19.65 (IGEL@ITGA) #mainline-udos`
+
+Where the kernel version and OS edition, e.g. `udos`, `lxos` or `lxos12`, will vary.
+
+#### UEFI
+
+For UEFI systems, the boot process is described below:
+
+1.  `bootx64.efi` or `bootia32.efi` (signed by `/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Corporation UEFI CA 2011`)
+    1.  These images are signed (by Microsoft) shims to hand off execution to GRUB
+    2.  The source code for these images can be found
+        [here](https://github.com/igelboot/shim/tree/igel-shim)
+        and [here](https://github.com/IGEL-Technology/shim)
+    3.  These were reviewed by the [SHIM review board](https://github.com/rhboot/shim-review)
+        via [issue #11](https://github.com/rhboot/shim-review/issues/11) ([review](https://github.com/igelboot/shim-review))
+        and [issue #434](https://github.com/rhboot/shim-review/issues/434) ([review](https://github.com/IGEL-Technology/shim-review))
+        respectively
+    4.  These were then submitted and signed by Microsoft according to these [instructions](https://techcommunity.microsoft.com/blog/hardwaredevcenter/updated-uefi-signing-requirements/1062916)
+2.  `igelx64.efi` or `igelia32.efi` (signed by `/CN=IGEL Secure Boot Signing CA/O=IGEL Technology GmbH/L=Bremen/C=DE`)
+    1.  These images are signed (by IGEL) GRUB binaries
+3.  GRUB loads signed `igelfs.mod` to load and boot kernel from IGEL filesystem
+
 ## Installation
 
 1.  Clone the repository: `git clone https://github.com/Zedeldi/igelfs.git`
@@ -208,7 +240,8 @@ without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 ### Original
 
 The original source code, from which this project was derived, can be obtained
-by requesting it from IGEL via their [online form](https://www.igel.com/general-public-license/).
+by requesting it from IGEL via their [online form](https://www.igel.com/general-public-license/)
+or via this [GitHub repository](https://github.com/IGEL-Technology/igel-flash-driver).
 
 `/boot/grub/i386-pc/igelfs.mod` is licensed under the GPL v3.
 Requesting a copy of the source code should provide the `igel-flash-driver` kernel module
