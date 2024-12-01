@@ -210,17 +210,24 @@ class Section(BaseDataModel, CRCMixin):
             sections[-1] = sections[-1].ljust(IGF_SECT_DATA_LEN, b"\x00")
         return sections
 
+    def zero(self) -> None:
+        """Set payload of Section instance to null bytes and update CRC."""
+        self.data = b"\x00" * len(self.data)
+        self.update_crc()
+
     @classmethod
     def set_payload_of(
         cls: type["Section"],
         sections: DataModelCollection["Section"],
         payload: bytes,
         preserve_extents: bool = True,
+        zero: bool = True,
     ) -> DataModelCollection["Section"]:
         """
         Set payload for collection of sections to bytes in payload.
 
         If preserve_extents is True, extent payloads will not be overwritten.
+        If zero is True, zero the payload of sections before replacing.
         """
         # Copy list of sections to prevent changing original data
         sections = copy.deepcopy(sections)
@@ -238,8 +245,11 @@ class Section(BaseDataModel, CRCMixin):
         data = cls.split_into_sections(payload, pad=True)
         if len(data) > len(sections):
             raise ValueError(
-                f"Payload is too large '{len(data)}' to fit inside sections '{len(sections)}'"
+                f"Payload is too large to fit inside sections ({len(data)} > {len(sections)})"
             )
+        if zero:
+            for section in sections:
+                section.zero()
         for index, section in enumerate(data):
             sections[index].data = section
             sections[index].update_crc()
