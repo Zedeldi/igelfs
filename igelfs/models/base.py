@@ -1,7 +1,7 @@
 """Concrete base classes for various data models."""
 
 import io
-from dataclasses import Field, dataclass, fields
+from dataclasses import Field, asdict, dataclass, fields
 from typing import Any, ClassVar, Iterator, get_args, get_origin
 
 from igelfs.models.abc import BaseBytesModel
@@ -21,7 +21,7 @@ class BaseDataModel(BaseBytesModel):
     def to_bytes(self) -> bytes:
         """Return bytes of all data."""
         with io.BytesIO() as fd:
-            for field in self.fields(init_only=False):
+            for field in self.get_fields(init_only=False):
                 data = getattr(self, field.name)
                 match data:
                     case bytes():
@@ -38,6 +38,10 @@ class BaseDataModel(BaseBytesModel):
             fd.seek(0)
             return fd.read()
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return dictionary for data model."""
+        return asdict(self)
+
     @classmethod
     def get_model_size(cls: type["BaseDataModel"]) -> int:
         """Return expected total size of data for model."""
@@ -47,6 +51,17 @@ class BaseDataModel(BaseBytesModel):
     def get_attribute_size(cls: type["BaseDataModel"], name: str) -> int:
         """Return size of data for attribute."""
         return cls.MODEL_ATTRIBUTE_SIZES[name]
+
+    @classmethod
+    def get_attribute_offset(cls: type["BaseDataModel"], name: str) -> int:
+        """Return offset of bytes for attribute."""
+        offset = 0
+        for attribute, size in cls.MODEL_ATTRIBUTE_SIZES.items():
+            if attribute == name:
+                return offset
+            offset += size
+        else:
+            raise KeyError(f"Attribute '{name}' not found")
 
     def verify(self) -> bool:
         """Verify data model integrity."""
@@ -76,7 +91,7 @@ class BaseDataModel(BaseBytesModel):
             )
         model = {}
         with io.BytesIO(data) as fd:
-            for field in cls.fields(init_only=True):
+            for field in cls.get_fields(init_only=True):
                 data = fd.read(cls.get_attribute_size(field.name))
                 if not data:
                     raise ValueError(f"Not enough data for model '{cls.__name__}'")
@@ -108,7 +123,7 @@ class BaseDataModel(BaseBytesModel):
     def from_bytes(cls: type["BaseDataModel"], data: bytes) -> "BaseDataModel":
         """Return data model instance from bytes."""
         model = cls.from_bytes_to_dict(data)
-        for field in cls.fields(init_only=True):
+        for field in cls.get_fields(init_only=True):
             model[field.name] = cls.from_field(model[field.name], field)
         return cls(**model)
 
@@ -120,7 +135,9 @@ class BaseDataModel(BaseBytesModel):
         return (cls.from_bytes(data), data[cls.get_model_size() :])
 
     @classmethod
-    def fields(cls: type["BaseDataModel"], init_only: bool = True) -> Iterator[Field]:
+    def get_fields(
+        cls: type["BaseDataModel"], init_only: bool = True
+    ) -> Iterator[Field]:
         """
         Return iterator of fields for dataclass.
 
@@ -130,6 +147,17 @@ class BaseDataModel(BaseBytesModel):
             if init_only and not field.init:
                 continue
             yield field
+
+    @classmethod
+    def get_field_by_name(
+        cls: type["BaseDataModel"], name: str, *args, **kwargs
+    ) -> Field:
+        """Return field for dataclass by name."""
+        for field in cls.get_fields(*args, **kwargs):
+            if field.name == name:
+                return field
+        else:
+            raise ValueError(f"Field '{name}' not found")
 
 
 class BaseDataGroup(BaseBytesModel):
