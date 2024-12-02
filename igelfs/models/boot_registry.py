@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import ClassVar
 
-from igelfs.constants import BOOTREG_MAGIC, IGEL_BOOTREG_SIZE
+from igelfs.constants import BOOTREG_IDENT, BOOTREG_MAGIC, IGEL_BOOTREG_SIZE
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 
@@ -76,8 +76,16 @@ class BootRegistryEntry(BaseDataModel):
         return self.data[self.key_length :].rstrip(b"\x00").decode()
 
 
+@dataclass
 class BaseBootRegistryHeader(BaseDataModel):
     """Base class for boot registry header."""
+
+    def __post_init__(self) -> None:
+        """Verify identity string on initialisation."""
+        if self.ident_legacy != BOOTREG_IDENT:
+            raise ValueError(
+                f"Unexpected identity string '{self.ident_legacy}' for boot registry"
+            )
 
     @abstractmethod
     def get_entries(self) -> dict[str, str]:
@@ -120,6 +128,14 @@ class BootRegistryHeader(BaseBootRegistryHeader):
     dir: bytes  # directory bitmap (4 bits for each block -> key len)
     reserve: bytes  # placeholder
     entry: DataModelCollection[BootRegistryEntry]  # real data
+
+    def __post_init__(self) -> None:
+        """Verify magic string on initialisation."""
+        super().__post_init__()
+        if self.magic != BOOTREG_MAGIC:
+            raise ValueError(
+                f"Unexpected magic string '{self.magic}' for boot registry"
+            )
 
     def get_entries(self) -> dict[str, str]:
         """Return dictionary of all boot registry entries."""
