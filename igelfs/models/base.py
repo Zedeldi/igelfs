@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Iterator, get_args, get_origin
 
 from igelfs.models.abc import BaseBytesModel
 from igelfs.models.collections import DataModelCollection
+from igelfs.utils import replace_bytes
 
 
 @dataclass
@@ -13,6 +14,7 @@ class BaseDataModel(BaseBytesModel):
     """Concrete base class for data model."""
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]]
+    DEFAULT_VALUES: ClassVar[dict[str, Any]]
 
     def __len__(self) -> int:
         """Implement __len__ data model method."""
@@ -23,18 +25,14 @@ class BaseDataModel(BaseBytesModel):
         with io.BytesIO() as fd:
             for field in self.get_fields(init_only=False):
                 data = getattr(self, field.name)
-                match data:
-                    case bytes():
-                        fd.write(data)
-                    case int():
+                try:
+                    try:
                         size = self.get_attribute_size(field.name)
-                        fd.write(data.to_bytes(size, byteorder="little"))
-                    case str():
-                        fd.write(data.encode())
-                    case BaseBytesModel():
-                        fd.write(data.to_bytes())
-                    case _:
-                        continue
+                    except KeyError:
+                        size = 1
+                    fd.write(convert_to_bytes(data, size))
+                except TypeError:
+                    continue
             fd.seek(0)
             return fd.read()
 
@@ -135,6 +133,26 @@ class BaseDataModel(BaseBytesModel):
         return (cls.from_bytes(data), data[cls.get_model_size() :])
 
     @classmethod
+    def _get_default_bytes(cls: type["BaseDataModel"]) -> bytes:
+        """Return default bytes for new data model."""
+        data = bytes(cls.get_model_size())
+        if not hasattr(cls, "DEFAULT_VALUES"):
+            return data
+        for name, value in cls.DEFAULT_VALUES.items():
+            offset = cls.get_attribute_offset(name)
+            try:
+                size = cls.get_attribute_size(name)
+            except KeyError:
+                size = 1
+            data = replace_bytes(data, convert_to_bytes(value, size), offset)
+        return data
+
+    @classmethod
+    def new(cls: type["BaseDataModel"]) -> "BaseDataModel":
+        """Return new data model instance with default data."""
+        return cls.from_bytes(cls._get_default_bytes())
+
+    @classmethod
     def get_fields(
         cls: type["BaseDataModel"], init_only: bool = True
     ) -> Iterator[Field]:
@@ -168,14 +186,24 @@ class BaseDataGroup(BaseBytesModel):
         with io.BytesIO() as fd:
             for field in fields(self):
                 data = getattr(self, field.name)
-                match data:
-                    case bytes():
-                        fd.write(data)
-                    case str():
-                        fd.write(data.encode())
-                    case BaseBytesModel():
-                        fd.write(data.to_bytes())
-                    case _:
-                        continue
+                try:
+                    fd.write(convert_to_bytes(data))
+                except TypeError:
+                    continue
             fd.seek(0)
             return fd.read()
+
+
+def convert_to_bytes(data: Any, size: int = 1) -> bytes:
+    """Convert data to bytes based on type."""
+    match data:
+        case bytes():
+            return data
+        case int():
+            return data.to_bytes(size, byteorder="little")
+        case str():
+            return data.encode()
+        case BaseBytesModel():
+            return data.to_bytes()
+        case _:
+            raise TypeError(f"Unknown data type '{type(data)}'")

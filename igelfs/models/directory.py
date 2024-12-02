@@ -57,6 +57,7 @@ class Directory(BaseDataModel, CRCMixin):
         "partition": DIR_MAX_MINORS * PartitionDescriptor.get_model_size(),
         "fragment": MAX_FRAGMENTS * FragmentDescriptor.get_model_size(),
     }
+    DEFAULT_VALUES = {"magic": DIRECTORY_MAGIC}
     CRC_OFFSET = 4 + 4
 
     magic: str  # DIRECTORY_MAGIC

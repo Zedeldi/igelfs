@@ -115,6 +115,7 @@ class BootRegistryHeader(BaseBootRegistryHeader):
         "reserve": 4,
         "entry": 504 * BootRegistryEntry.get_model_size(),
     }
+    DEFAULT_VALUES = {"ident_legacy": BOOTREG_IDENT, "magic": BOOTREG_MAGIC}
 
     ident_legacy: str  # "IGEL BOOTREGISTRY"
     magic: str  # BOOTREG_MAGIC
@@ -167,6 +168,7 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
         "ident_legacy": 17,
         "entry": IGEL_BOOTREG_SIZE - 17,
     }
+    DEFAULT_VALUES = {"ident_legacy": BOOTREG_IDENT}
 
     ident_legacy: str
     entry: bytes
@@ -179,7 +181,10 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
                 continue
             if entry == "EOF":
                 break
-            key, value = entry.split("=")
+            try:
+                key, value = entry.split("=")
+            except ValueError:
+                continue
             entries[key] = value
         return entries
 

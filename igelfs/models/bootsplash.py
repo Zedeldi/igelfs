@@ -16,6 +16,7 @@ class BootsplashHeader(BaseDataModel):
     """Dataclass to handle bootsplash header data."""
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {"magic": 14, "num_splashs": 1}
+    DEFAULT_VALUES = {"magic": BOOTSPLASH_MAGIC}
 
     magic: str  # BOOTSPLASH_MAGIC
     num_splashs: int

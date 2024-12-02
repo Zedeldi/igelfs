@@ -36,6 +36,7 @@ class SectionHeader(BaseDataModel):
         "next_section": 4,
         "reserved": 6,
     }
+    DEFAULT_VALUES = {"magic": IGF_SECT_HDR_MAGIC[-1]}
 
     crc: int  # crc of the rest of the section
     magic: int  # magic number (erase count long ago)
@@ -66,6 +67,7 @@ class Section(BaseDataModel, CRCMixin):
         "header": IGF_SECT_HDR_LEN,
         "data": IGF_SECT_DATA_LEN,
     }
+    DEFAULT_VALUES = {"header": SectionHeader.new()}
     CRC_OFFSET = SECTION_IMAGE_CRC_START
 
     header: SectionHeader

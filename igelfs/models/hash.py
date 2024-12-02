@@ -106,6 +106,7 @@ class HashHeader(BaseDataModel):
         "offset_hash_excludes": 4,
         "reserved": 4,
     }
+    DEFAULT_VALUES = {"ident": HASH_HDR_IDENT}
 
     ident: str  # Ident string "chksum"
     # version number of header probably use with flags

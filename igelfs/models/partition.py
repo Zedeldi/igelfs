@@ -30,6 +30,7 @@ class PartitionHeader(BaseDataModel):
         "name": 16,
         "update_hash": 64,
     }
+    DEFAULT_VALUES = {"hdrlen": 124}
 
     type: int  # partition type
     hdrlen: int  # length of the complete partition header (incl. extents)
