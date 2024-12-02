@@ -30,34 +30,34 @@ For OS 12, it appears the IGEL FS partition is #4, and partition #1 is small (~9
 
 Please see the following snippet from `igelfs.__init__` for a description of the filesystem structure:
 
-> -   Section #0
->     -   Boot Registry
->         -   Boot Registry Entries
->     - Directory
->         -   Partition Descriptors
->         -   Fragment Descriptors
-> -   Section #1, Partition Minor #1
->     -   Section Header
->     -   Partition Block
->         -   Partition Header
->         -   Partition Extents * `PartitionHeader.n_extents`
->     -   Hash Block, optional
->         -   Hash Header
->         -   Hash Excludes * `HashHeader.count_excludes`
->         -   Hash Values => `HashHeader.hash_block_size`
->     -   Partition Data
->         - Extents
->         - Payload
-> -   Section #2, Partition Minor #1
->     -   Section Header
->     -   Partition Data
-> -   Section #3, Partition Minor #2...
+>   -   Section #0
+>       -   Boot Registry
+>           -   Boot Registry Entries
+>       - Directory
+>           -   Partition Descriptors
+>           -   Fragment Descriptors
+>   -   Section #1, Partition Minor #1
+>       -   Section Header
+>       -   Partition Block
+>           -   Partition Header
+>           -   Partition Extents * `PartitionHeader.n_extents`
+>       -   Hash Block, optional
+>           -   Hash Header
+>           -   Hash Excludes * `HashHeader.count_excludes`
+>           -   Hash Values => `HashHeader.hash_block_size`
+>       -   Partition Data
+>           - Extents
+>           - Payload
+>   -   Section #2, Partition Minor #1
+>       -   Section Header
+>       -   Partition Data
+>   -   Section #3, Partition Minor #2...
 >
-> In short, all partitions are stored in sections as a linked list.
-> Each section has a section header, which contains the partition minor (ID)
-> and the next section for the partition until `0xffffffff`.
-> The first section of a partition also contains a partition header
-> and optionally a hash header.
+>   In short, all partitions are stored in sections as a linked list.
+>   Each section has a section header, which contains the partition minor (ID)
+>   and the next section for the partition until `0xffffffff`.
+>   The first section of a partition also contains a partition header
+>   and optionally a hash header.
 
 For more information about these data structures, see [models](#models).
 
@@ -70,7 +70,10 @@ Most of the higher-level models are taken directly from `igelsdk.h`, with added 
 `BaseBytesModel` provides an abstract base class, with concrete methods for handling bytes, shared across various models.
 
 `BaseDataModel` is the parent class for all higher-level models.
-For these models to be instantiated directly from bytes, they must define `MODEL_ATTRIBUTE_SIZES` as a mapping of dataclass field names to the length of bytes to read.
+For these models to be instantiated directly from bytes, they must define `MODEL_ATTRIBUTE_SIZES`
+as a mapping of dataclass field names to the length of bytes to read.
+To set default values when instantiating models from nothing with `new`,
+add the value to the `DEFAULT_VALUES` dictionary of the model.
 
 #### Section
 
@@ -144,14 +147,14 @@ Excluded bytes are replaced with null bytes (`\x00`).
 
 Please see the docstring below from `igelfs.models.hash.HashExclude` for more information:
 
-> The following bytes are normally excluded for each section (inclusive):
-> -   0-3 => `SectionHeader.crc`
-> -   16-17 => `SectionHeader.generation`
-> -   22-25 => `SectionHeader.next_section`
+>   The following bytes are normally excluded for each section (inclusive):
+>   -   0-3 => `SectionHeader.crc`
+>   -   16-17 => `SectionHeader.generation`
+>   -   22-25 => `SectionHeader.next_section`
 >
-> The following bytes are normally excluded for section zero (inclusive, shifted by partition extents):
-> -   164-675 => `HashHeader.signature`
-> -   836-836 + (`HashHeader.hash_bytes` * `HashHeader.count_hash`) => `Section.hash_value`
+>   The following bytes are normally excluded for section zero (inclusive, shifted by partition extents):
+>   -   164-675 => `HashHeader.signature`
+>   -   836-836 + (`HashHeader.hash_bytes` * `HashHeader.count_hash`) => `Section.hash_value`
 
 Similarly to the `CRC_OFFSET`, the hash excludes serve to remove dynamic values from the hash input;
 only the payload and metadata of the section is verified.
@@ -165,7 +168,7 @@ This confirms the authenticity of the data, and prevents modifying the hash valu
 
 ### Boot Process
 
-The boot process of IGEL OS is important when considering the structure of the system file system.
+The boot process of IGEL OS is important when considering the structure of the file system.
 
 #### Kernel
 
@@ -211,10 +214,10 @@ For UEFI systems, the boot process is described below:
 
 This extract from a [Red Hat article](https://access.redhat.com/articles/5991201) describes the initial boot process clearly:
 
-> shim is a first-stage boot loader that embeds a self-signed Certificate Authority (CA) certificate.
-> Microsoft signs shim binaries, which ensures that they can be booted on all machines with a pre-loaded Microsoft certificate.
-> shim uses the embedded certificate to verify the signature of the GRUB 2 boot loader.
-> shim also provides a protocol that GRUB 2 uses to verify the kernel signature.
+>   shim is a first-stage boot loader that embeds a self-signed Certificate Authority (CA) certificate.
+>   Microsoft signs shim binaries, which ensures that they can be booted on all machines with a pre-loaded Microsoft certificate.
+>   shim uses the embedded certificate to verify the signature of the GRUB 2 boot loader.
+>   shim also provides a protocol that GRUB 2 uses to verify the kernel signature.
 
 ## Installation
 
