@@ -177,23 +177,44 @@ When querying the file type, you should receive output similar to the following:
 
 Where the kernel version and OS edition, e.g. `udos`, `lxos` or `lxos12`, will vary.
 
+For IGEL OS installation media, the kernel is stored as a separate bzImage file on disk - not as a partition extent.
+Additionally, the IGEL filesystem image is stored alongside the kernel, named `ddimage.bin`.
+
 #### UEFI
 
 For UEFI systems, the boot process is described below:
 
 1.  `bootx64.efi` or `bootia32.efi` (signed by `/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Corporation UEFI CA 2011`)
     1.  These images are signed (by Microsoft) shims to hand off execution to GRUB
-    2.  The source code for these images can be found
-        [here](https://github.com/igelboot/shim/tree/igel-shim)
-        and [here](https://github.com/IGEL-Technology/shim)
+    2.  The source code for these images can be found at the following forks:
+        [igelboot](https://github.com/igelboot/shim/tree/igel-shim)
+        and [IGEL-Technology](https://github.com/IGEL-Technology/shim)
     3.  These were reviewed by the [SHIM review board](https://github.com/rhboot/shim-review)
         via [issue #11](https://github.com/rhboot/shim-review/issues/11) ([review](https://github.com/igelboot/shim-review))
         and [issue #434](https://github.com/rhboot/shim-review/issues/434) ([review](https://github.com/IGEL-Technology/shim-review))
         respectively
-    4.  These were then submitted and signed by Microsoft according to these [instructions](https://techcommunity.microsoft.com/blog/hardwaredevcenter/updated-uefi-signing-requirements/1062916)
+    4.  These were then submitted and signed by Microsoft according to
+        these [instructions](https://techcommunity.microsoft.com/blog/hardwaredevcenter/updated-uefi-signing-requirements/1062916)
 2.  `igelx64.efi` or `igelia32.efi` (signed by `/CN=IGEL Secure Boot Signing CA/O=IGEL Technology GmbH/L=Bremen/C=DE`)
     1.  These images are signed (by IGEL) GRUB binaries
+    2.  The kernel is also signed by this key
+    3.  These certificates can be downloaded from the following links:
+        [igel-efi-pub-key (2017-2047)](https://github.com/igelboot/shim/blob/igel-shim/igel-efi-pub-key.der)
+        and [igel-uefi-ca (2024-2054)](https://github.com/IGEL-Technology/shim-review/blob/main/igel-uefi-ca.der)
 3.  GRUB loads signed `igelfs.mod` to load and boot kernel from IGEL filesystem
+    1.  The initramfs is embedded into the kernel (`bzImage`)
+    2.  For IGEL OS installation media, the kernel is stored as a separate file on disk,
+        not within an IGEL filesystem (see [above](#kernel))
+4.  The system partition (squashfs, usually zstd compressed) is mounted from initramfs
+    1. The root directory is changed to `/igfimage`
+    2. Real `init` (`systemd`) process is started
+
+This extract from a [Red Hat article](https://access.redhat.com/articles/5991201) describes the initial boot process clearly:
+
+> shim is a first-stage boot loader that embeds a self-signed Certificate Authority (CA) certificate.
+> Microsoft signs shim binaries, which ensures that they can be booted on all machines with a pre-loaded Microsoft certificate.
+> shim uses the embedded certificate to verify the signature of the GRUB 2 boot loader.
+> shim also provides a protocol that GRUB 2 uses to verify the kernel signature.
 
 ## Installation
 
@@ -214,6 +235,8 @@ For UEFI systems, the boot process is described below:
 If the project is installed: `igelfs-cli --help`
 
 Otherwise, you can run the module as a script: `python -m igelfs.cli --help`
+
+By default, filesystem partition information will be displayed.
 
 ## Testing
 
