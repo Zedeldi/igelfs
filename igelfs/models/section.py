@@ -302,6 +302,7 @@ class Section(BaseDataModel, CRCMixin):
                 "hash": None,
                 "signature": None,
             },
+            "name": None,
             "update_hash": None,
             "extents": [],
         }
@@ -312,6 +313,7 @@ class Section(BaseDataModel, CRCMixin):
             )
             info["verify"]["signature"] = hash_.verify_signature()
         if partition:
+            info["name"] = partition.header.get_name()
             info["update_hash"] = partition.header.update_hash.hex()
             for extent in partition.extents:
                 extent_payload = cls.get_extent_of(sections, extent)

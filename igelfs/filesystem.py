@@ -259,7 +259,7 @@ class Filesystem:
             sections = self.find_sections_by_directory(partition_minor)
             partition_info.update(Section.get_info_of(sections))
             partition_info["first_section"] = first_sections.get(partition_minor)
-            if lxos_config:
+            if lxos_config and not partition_info["name"]:
                 partition_info["name"] = lxos_config.find_name_by_partition_minor(
                     partition_minor
                 )
