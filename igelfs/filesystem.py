@@ -201,6 +201,23 @@ class Filesystem:
             for offset, section in enumerate(sections)
         )
 
+    def write_sections_to_unused(self, sections: DataModelCollection[Section]) -> int:
+        """
+        Write collection of sections to unused space, according to free list.
+
+        Returns total number of written bytes.
+        """
+        directory = self.directory
+        free_list = directory.free_list
+        if len(sections) > free_list.length:
+            raise ValueError(
+                f"Length of sections '{len(sections)}' is greater than free space '{free_list.length}'"
+            )
+        self.write_sections_at_index(sections, free_list.first_section)
+        free_list.first_section += len(sections)
+        free_list.length -= len(sections)
+        self.write_directory(directory)
+
     def get_section_by_offset(self, offset: int, size: int) -> Section:
         """Return Section of image by offset and size."""
         data = self.get_bytes(offset, size)
