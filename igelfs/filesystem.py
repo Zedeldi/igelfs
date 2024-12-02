@@ -25,6 +25,7 @@ from igelfs.models import (
     PartitionHeader,
     Section,
 )
+from igelfs.models.base import BaseDataModel
 from igelfs.utils import get_section_of, get_start_of_section
 
 
@@ -115,6 +116,27 @@ class Filesystem:
         data = self.get_bytes(DIR_OFFSET, DIR_SIZE)
         return Directory.from_bytes(data)
 
+    @classmethod
+    def new(cls: type["Filesystem"], path: str | Path, size: int) -> "Filesystem":
+        """Create new IGEL filesystem at path of size in sections and return instance."""
+        boot_registry = BootRegistryHeader.new()
+        directory = Directory.new()
+        # Directory does not fill rest of section #0
+        # Pad out with null bytes
+        directory_padding = bytes(DIR_SIZE - directory.get_actual_size())
+        sections = [Section.new() for _ in range(size)]
+        with open(path, "wb") as fd:
+            for data in (boot_registry, directory, directory_padding, *sections):
+                if isinstance(data, bytes):
+                    fd.write(data)
+                elif isinstance(data, BaseDataModel):
+                    fd.write(data.to_bytes())
+                else:
+                    raise TypeError(
+                        f"Unexpected type '{type(data)}' found when creating filesystem"
+                    )
+        return cls(path)
+
     def get_bytes(self, offset: int = 0, size: int = -1) -> bytes:
         """Return bytes for specified offset and size."""
         if offset > self.size:
@@ -130,6 +152,54 @@ class Filesystem:
         with open(self.path, "r+b") as fd:
             fd.seek(offset)
             return fd.write(data)
+
+    def _write_model(self, model: BaseDataModel, offset: int) -> int:
+        """Write data model to offset, returning number of written bytes."""
+        return self.write_bytes(model.to_bytes(), offset)
+
+    def write_boot_registry(
+        self, boot_registry: BootRegistryHeader | BootRegistryHeaderLegacy
+    ) -> int:
+        """Write boot registry to start (section #0) of image, returning number of written bytes."""
+        if boot_registry.get_actual_size() != IGEL_BOOTREG_SIZE:
+            raise ValueError(
+                "Boot registry does not meet the expected size "
+                f"({boot_registry.get_actual_size()} != {IGEL_BOOTREG_SIZE})"
+            )
+        return self._write_model(boot_registry, IGEL_BOOTREG_OFFSET)
+
+    def write_directory(self, directory: Directory) -> int:
+        """Write directory to start (section #0) of image, returning number of written bytes."""
+        if directory.get_actual_size() != Directory.get_model_size():
+            raise ValueError(
+                "Directory does not meet the expected size "
+                f"({directory.get_actual_size()} != {Directory.get_model_size()})"
+            )
+        return self._write_model(directory, DIR_OFFSET)
+
+    def write_section_to_index(self, section: Section, index: int) -> int:
+        """Write Section to index of image, returning number of written bytes."""
+        if section.get_actual_size() != IGF_SECTION_SIZE:
+            raise ValueError(
+                "Section does not meet the expected size "
+                f"({section.get_actual_size()} != {IGF_SECTION_SIZE})"
+            )
+        index = self._get_section_index(index)
+        offset = get_start_of_section(index)
+        return self._write_model(section, offset)
+
+    def write_sections_at_index(
+        self, sections: DataModelCollection[Section], index: int
+    ) -> int:
+        """
+        Write collection of sections to image contiguously, starting at index.
+
+        Returns total number of written bytes.
+        """
+        return sum(
+            self.write_section_to_index(section, index + offset)
+            for offset, section in enumerate(sections)
+        )
 
     def get_section_by_offset(self, offset: int, size: int) -> Section:
         """Return Section of image by offset and size."""
@@ -151,30 +221,6 @@ class Filesystem:
         offset = get_start_of_section(index)
         data = self.get_bytes(offset, IGF_SECTION_SIZE)
         return Section.from_bytes(data)
-
-    def write_section_to_index(self, section: Section, index: int) -> int:
-        """Write Section to index of image, returning number of written bytes."""
-        if section.get_actual_size() != IGF_SECTION_SIZE:
-            raise ValueError(
-                "Section does not meet the expected size "
-                f"({section.get_actual_size()} != {IGF_SECTION_SIZE})"
-            )
-        index = self._get_section_index(index)
-        offset = get_start_of_section(index)
-        return self.write_bytes(section.to_bytes(), offset)
-
-    def write_sections_at_index(
-        self, sections: DataModelCollection[Section], index: int
-    ) -> int:
-        """
-        Write collection of sections to image contiguously, starting at index.
-
-        Returns total number of written bytes.
-        """
-        return sum(
-            self.write_section_to_index(section, index + offset)
-            for offset, section in enumerate(sections)
-        )
 
     def find_sections_by_partition_minor(
         self, partition_minor: int

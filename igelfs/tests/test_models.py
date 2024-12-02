@@ -5,7 +5,6 @@ import pytest
 from igelfs import models
 from igelfs.models.base import BaseDataModel
 
-
 data_models = filter(
     lambda cls: issubclass(cls, BaseDataModel), map(models.__dict__.get, models.__all__)
 )

@@ -3,7 +3,12 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from igelfs.constants import DIR_MAX_MINORS, DIRECTORY_MAGIC, MAX_FRAGMENTS
+from igelfs.constants import (
+    DIR_MAX_MINORS,
+    DIRECTORY_MAGIC,
+    MAX_FRAGMENTS,
+    PartitionType,
+)
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.mixins import CRCMixin
@@ -35,6 +40,10 @@ class PartitionDescriptor(BaseDataModel):
     first_fragment: int  # index of the first fragment
     n_fragments: int  # number of additional fragments
 
+    def get_type(self) -> PartitionType:
+        """Return PartitionType from PartitionDescriptor instance."""
+        return PartitionType(self.type)
+
 
 @dataclass
 class Directory(BaseDataModel, CRCMixin):
@@ -57,7 +66,12 @@ class Directory(BaseDataModel, CRCMixin):
         "partition": DIR_MAX_MINORS * PartitionDescriptor.get_model_size(),
         "fragment": MAX_FRAGMENTS * FragmentDescriptor.get_model_size(),
     }
-    DEFAULT_VALUES = {"magic": DIRECTORY_MAGIC}
+    DEFAULT_VALUES = {
+        "magic": DIRECTORY_MAGIC,
+        "version": 1,
+        "max_minors": DIR_MAX_MINORS,
+        "max_fragments": MAX_FRAGMENTS,
+    }
     CRC_OFFSET = 4 + 4
 
     magic: str  # DIRECTORY_MAGIC
@@ -76,6 +90,11 @@ class Directory(BaseDataModel, CRCMixin):
         """Verify magic string on initialisation."""
         if self.magic != DIRECTORY_MAGIC:
             raise ValueError(f"Unexpected magic '{self.magic}' for directory")
+
+    @property
+    def free_list(self) -> FragmentDescriptor:
+        """Return fragment descriptor for free list."""
+        return self.fragment[self.partition[0].first_fragment]
 
     @property
     def partition_minors(self) -> set[int]:
@@ -110,3 +129,48 @@ class Directory(BaseDataModel, CRCMixin):
             for minor in sorted(self.partition_minors)
         }
         return info
+
+    def _get_empty_partition(self) -> tuple[PartitionDescriptor, int]:
+        """Get next available empty partition descriptor index and instance."""
+        for index, partition in enumerate(self.partition):
+            if partition.type == PartitionType.EMPTY:
+                return (partition, index)
+        else:
+            raise ValueError("No empty partition descriptors found")
+
+    def _get_empty_fragment(self) -> tuple[FragmentDescriptor, int]:
+        """Get next available empty fragment descriptor index and instance."""
+        for index, fragment in enumerate(self.fragment):
+            if fragment.first_section == 0 and fragment.length == 0:
+                return (fragment, index)
+        else:
+            raise ValueError("No empty fragment descriptors found")
+
+    def create_entry(
+        self, partition_minor: int, first_section: int, length: int
+    ) -> None:
+        """Create entry for specified data."""
+        if self.find_fragment_by_partition_minor(partition_minor):
+            raise ValueError(
+                f"Fragment for partition minor #{partition_minor} already exists"
+            )
+        partition, _ = self._get_empty_partition()
+        fragment, first_fragment = self._get_empty_fragment()
+        partition.minor = partition_minor
+        partition.type = PartitionType.IGEL_COMPRESSED
+        partition.first_fragment = first_fragment
+        partition.n_fragments = 1
+        fragment.first_section = first_section
+        fragment.length = length
+
+    def update_entry(
+        self, partition_minor: int, first_section: int, length: int
+    ) -> None:
+        """Update directory entry with specified data."""
+        fragment = self.find_fragment_by_partition_minor(partition_minor)
+        if not fragment:
+            raise ValueError(
+                f"Fragment for partition minor #{partition_minor} does not exist"
+            )
+        fragment.first_section = first_section
+        fragment.length = length

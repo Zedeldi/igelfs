@@ -139,6 +139,8 @@ class BaseDataModel(BaseBytesModel):
         if not hasattr(cls, "DEFAULT_VALUES"):
             return data
         for name, value in cls.DEFAULT_VALUES.items():
+            if callable(value):
+                value = value()
             offset = cls.get_attribute_offset(name)
             try:
                 size = cls.get_attribute_size(name)

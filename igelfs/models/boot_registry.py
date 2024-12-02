@@ -2,12 +2,19 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 from functools import partial
 from typing import ClassVar
 
 from igelfs.constants import BOOTREG_IDENT, BOOTREG_MAGIC, IGEL_BOOTREG_SIZE
 from igelfs.models.base import BaseDataModel
 from igelfs.models.collections import DataModelCollection
+
+
+def generate_boot_id() -> str:
+    """Generate a boot ID based on current date."""
+    dt = datetime.now()
+    return dt.strftime("%y%m%d%H%M%S") + dt.strftime("%f").zfill(9)
 
 
 @dataclass
@@ -80,6 +87,8 @@ class BootRegistryEntry(BaseDataModel):
 class BaseBootRegistryHeader(BaseDataModel):
     """Base class for boot registry header."""
 
+    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {"_": IGEL_BOOTREG_SIZE}
+
     def __post_init__(self) -> None:
         """Verify identity string on initialisation."""
         if self.ident_legacy != BOOTREG_IDENT:
@@ -115,7 +124,12 @@ class BootRegistryHeader(BaseBootRegistryHeader):
         "reserve": 4,
         "entry": 504 * BootRegistryEntry.get_model_size(),
     }
-    DEFAULT_VALUES = {"ident_legacy": BOOTREG_IDENT, "magic": BOOTREG_MAGIC}
+    DEFAULT_VALUES = {
+        "ident_legacy": BOOTREG_IDENT,
+        "magic": BOOTREG_MAGIC,
+        "hdr_version": 1,
+        "boot_id": generate_boot_id,
+    }
 
     ident_legacy: str  # "IGEL BOOTREGISTRY"
     magic: str  # BOOTREG_MAGIC
