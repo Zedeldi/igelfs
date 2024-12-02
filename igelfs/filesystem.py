@@ -121,6 +121,8 @@ class Filesystem:
         """Create new IGEL filesystem at path of size in sections and return instance."""
         boot_registry = BootRegistryHeader.new()
         directory = Directory.new()
+        directory.free_list.first_section = 1
+        directory.free_list.length = size
         # Directory does not fill rest of section #0
         # Pad out with null bytes
         directory_padding = bytes(DIR_SIZE - directory.get_actual_size())
@@ -201,7 +203,9 @@ class Filesystem:
             for offset, section in enumerate(sections)
         )
 
-    def write_sections_to_unused(self, sections: DataModelCollection[Section]) -> int:
+    def write_sections_to_unused(
+        self, sections: DataModelCollection[Section], update_directory: bool = True
+    ) -> int:
         """
         Write collection of sections to unused space, according to free list.
 
@@ -214,9 +218,10 @@ class Filesystem:
                 f"Length of sections '{len(sections)}' is greater than free space '{free_list.length}'"
             )
         self.write_sections_at_index(sections, free_list.first_section)
-        free_list.first_section += len(sections)
-        free_list.length -= len(sections)
-        self.write_directory(directory)
+        if update_directory:
+            free_list.first_section += len(sections)
+            free_list.length -= len(sections)
+            self.write_directory(directory)
 
     def get_section_by_offset(self, offset: int, size: int) -> Section:
         """Return Section of image by offset and size."""
