@@ -1,16 +1,17 @@
 """Concrete base classes for various data models."""
 
 import io
-from dataclasses import Field, asdict, dataclass, fields
-from typing import Any, ClassVar, Iterator, get_args, get_origin
+from dataclasses import Field, dataclass
+from typing import Any, ClassVar, get_args, get_origin
 
 from igelfs.models.abc import BaseBytesModel
 from igelfs.models.collections import DataModelCollection
+from igelfs.models.mixins import DataclassMixin
 from igelfs.utils import replace_bytes
 
 
 @dataclass
-class BaseDataModel(BaseBytesModel):
+class BaseDataModel(BaseBytesModel, DataclassMixin):
     """Concrete base class for data model."""
 
     MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]]
@@ -30,15 +31,11 @@ class BaseDataModel(BaseBytesModel):
                         size = self.get_attribute_size(field.name)
                     except KeyError:
                         size = 1
-                    fd.write(convert_to_bytes(data, size))
+                    fd.write(self.convert_to_bytes(data, size))
                 except TypeError:
                     continue
             fd.seek(0)
             return fd.read()
-
-    def to_dict(self) -> dict[str, Any]:
-        """Return dictionary for data model."""
-        return asdict(self)
 
     @classmethod
     def get_model_size(cls: type["BaseDataModel"]) -> int:
@@ -146,7 +143,7 @@ class BaseDataModel(BaseBytesModel):
                 size = cls.get_attribute_size(name)
             except KeyError:
                 size = 1
-            data = replace_bytes(data, convert_to_bytes(value, size), offset)
+            data = replace_bytes(data, cls.convert_to_bytes(value, size), offset)
         return data
 
     @classmethod
@@ -154,58 +151,18 @@ class BaseDataModel(BaseBytesModel):
         """Return new data model instance with default data."""
         return cls.from_bytes(cls._get_default_bytes())
 
-    @classmethod
-    def get_fields(
-        cls: type["BaseDataModel"], init_only: bool = True
-    ) -> Iterator[Field]:
-        """
-        Return iterator of fields for dataclass.
 
-        If init_only, only include fields with parameters in __init__ method.
-        """
-        for field in fields(cls):
-            if init_only and not field.init:
-                continue
-            yield field
-
-    @classmethod
-    def get_field_by_name(
-        cls: type["BaseDataModel"], name: str, *args, **kwargs
-    ) -> Field:
-        """Return field for dataclass by name."""
-        for field in cls.get_fields(*args, **kwargs):
-            if field.name == name:
-                return field
-        else:
-            raise ValueError(f"Field '{name}' not found")
-
-
-class BaseDataGroup(BaseBytesModel):
+class BaseDataGroup(BaseBytesModel, DataclassMixin):
     """Concrete base class for a dataclass of data models."""
 
     def to_bytes(self) -> bytes:
         """Return bytes of all data."""
         with io.BytesIO() as fd:
-            for field in fields(self):
+            for field in self.get_fields(init_only=False):
                 data = getattr(self, field.name)
                 try:
-                    fd.write(convert_to_bytes(data))
+                    fd.write(self.convert_to_bytes(data))
                 except TypeError:
                     continue
             fd.seek(0)
             return fd.read()
-
-
-def convert_to_bytes(data: Any, size: int = 1) -> bytes:
-    """Convert data to bytes based on type."""
-    match data:
-        case bytes():
-            return data
-        case int():
-            return data.to_bytes(size, byteorder="little")
-        case str():
-            return data.encode()
-        case BaseBytesModel():
-            return data.to_bytes()
-        case _:
-            raise TypeError(f"Unknown data type '{type(data)}'")
