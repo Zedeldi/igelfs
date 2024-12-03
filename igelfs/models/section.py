@@ -212,6 +212,23 @@ class Section(BaseDataModel, CRCMixin):
             sections[-1] = sections[-1].ljust(IGF_SECT_DATA_LEN, b"\x00")
         return sections
 
+    def resize(self) -> None:
+        """
+        Resize payload of Section instance to correct size and update CRC.
+
+        This will append null bytes or destructively truncate the payload.
+        """
+        payload_size = IGF_SECT_DATA_LEN
+        if self.partition:
+            payload_size -= self.partition.get_actual_size()
+        if self.hash:
+            payload_size -= self.hash.get_actual_size()
+        if (difference := len(self.data) - payload_size) < 0:
+            self.data += bytes(abs(difference))
+        else:
+            self.data = self.data[:payload_size]
+        self.update_crc()
+
     def zero(self) -> None:
         """Set payload of Section instance to null bytes and update CRC."""
         self.data = b"\x00" * len(self.data)
