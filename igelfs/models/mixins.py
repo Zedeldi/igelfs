@@ -34,8 +34,17 @@ class CRCMixin:
 class DataclassMixin:
     """Provide methods to obtain various data from a dataclass."""
 
-    def to_dict(self) -> dict[str, Any]:
-        """Return dictionary for data model."""
+    def to_dict(self, shallow: bool = False) -> dict[str, Any]:
+        """
+        Return dictionary for data model.
+
+        If shallow is True, do not recurse into nested data structures.
+        """
+        if shallow:
+            return {
+                field.name: getattr(self, field.name)
+                for field in self.get_fields(init_only=False)
+            }
         return asdict(self)
 
     @classmethod
@@ -52,7 +61,7 @@ class DataclassMixin:
 
     @classmethod
     def get_field_by_name(
-        cls: type["FieldsMixin"], name: str, *args, **kwargs
+        cls: type["DataclassMixin"], name: str, *args, **kwargs
     ) -> Field:
         """Return field for dataclass by name."""
         for field in cls.get_fields(*args, **kwargs):

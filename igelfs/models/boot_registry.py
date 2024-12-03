@@ -1,13 +1,12 @@
 """Data models for the boot registry of a filesystem image."""
 
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
-from typing import ClassVar
 
 from igelfs.constants import BOOTREG_IDENT, BOOTREG_MAGIC, IGEL_BOOTREG_SIZE
-from igelfs.models.base import BaseDataModel
+from igelfs.models.base import BaseDataModel, DataModelMetadata
 from igelfs.models.collections import DataModelCollection
 
 
@@ -21,10 +20,10 @@ def generate_boot_id() -> str:
 class BootRegistryEntry(BaseDataModel):
     """Dataclass to describe each entry of boot registry."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {"flag": 2, "data": 62}
-
-    flag: int  # first 9 bits next, 1 bit next present, 6 bit len key
-    data: bytes
+    flag: int = field(  # first 9 bits next, 1 bit next present, 6 bit len key
+        metadata=DataModelMetadata(size=2)
+    )
+    data: bytes = field(metadata=DataModelMetadata(size=62))
 
     @property
     def _flag_bits(self) -> tuple[str, str, str]:
@@ -38,7 +37,7 @@ class BootRegistryEntry(BaseDataModel):
         bits = (
             bin(
                 int(
-                    self.flag.to_bytes(self.MODEL_ATTRIBUTE_SIZES["flag"], "big").hex(),
+                    self.flag.to_bytes(self.get_attribute_size("flag"), "big").hex(),
                     base=16,
                 )
             )
@@ -87,8 +86,6 @@ class BootRegistryEntry(BaseDataModel):
 class BaseBootRegistryHeader(BaseDataModel):
     """Base class for boot registry header."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {"_": IGEL_BOOTREG_SIZE}
-
     def __post_init__(self) -> None:
         """Verify identity string on initialisation."""
         if self.ident_legacy != BOOTREG_IDENT:
@@ -110,39 +107,34 @@ class BootRegistryHeader(BaseBootRegistryHeader):
     The boot registry resides in section #0 of the image.
     """
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "ident_legacy": 17,
-        "magic": 4,
-        "hdr_version": 1,
-        "boot_id": 21,
-        "enc_alg": 1,
-        "flags": 2,
-        "empty": 82,
-        "free": 64,
-        "used": 64,
-        "dir": 252,
-        "reserve": 4,
-        "entry": 504 * BootRegistryEntry.get_model_size(),
-    }
-    DEFAULT_VALUES = {
-        "ident_legacy": BOOTREG_IDENT,
-        "magic": BOOTREG_MAGIC,
-        "hdr_version": 1,
-        "boot_id": generate_boot_id,
-    }
-
-    ident_legacy: str  # "IGEL BOOTREGISTRY"
-    magic: str  # BOOTREG_MAGIC
-    hdr_version: int  # 0x01 for the first
-    boot_id: str  # boot_id
-    enc_alg: int  # encryption algorithm
-    flags: int  # flags
-    empty: bytes  # placeholder
-    free: bytes  # bitmap with free 64 byte blocks
-    used: bytes  # bitmap with used 64 byte blocks
-    dir: bytes  # directory bitmap (4 bits for each block -> key len)
-    reserve: bytes  # placeholder
-    entry: DataModelCollection[BootRegistryEntry]  # real data
+    ident_legacy: str = field(  # "IGEL BOOTREGISTRY"
+        metadata=DataModelMetadata(size=17, default=BOOTREG_IDENT)
+    )
+    magic: str = field(  # BOOTREG_MAGIC
+        metadata=DataModelMetadata(size=4, default=BOOTREG_MAGIC)
+    )
+    hdr_version: int = field(  # 0x01 for the first
+        metadata=DataModelMetadata(size=1, default=1)
+    )
+    boot_id: str = field(  # boot_id
+        metadata=DataModelMetadata(size=21, default=generate_boot_id)
+    )
+    enc_alg: int = field(metadata=DataModelMetadata(size=1))  # encryption algorithm
+    flags: int = field(metadata=DataModelMetadata(size=2))  # flags
+    empty: bytes = field(metadata=DataModelMetadata(size=82))  # placeholder
+    free: bytes = field(  # bitmap with free 64 byte blocks
+        metadata=DataModelMetadata(size=64)
+    )
+    used: bytes = field(  # bitmap with used 64 byte blocks
+        metadata=DataModelMetadata(size=64)
+    )
+    dir: bytes = field(  # directory bitmap (4 bits for each block -> key len)
+        metadata=DataModelMetadata(size=252)
+    )
+    reserve: bytes = field(metadata=DataModelMetadata(size=4))  # placeholder
+    entry: DataModelCollection[BootRegistryEntry] = field(  # real data
+        metadata=DataModelMetadata(size=504 * BootRegistryEntry.get_model_size())
+    )
 
     def __post_init__(self) -> None:
         """Verify magic string on initialisation."""
@@ -178,14 +170,10 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
     The boot registry resides in section #0 of the image.
     """
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "ident_legacy": 17,
-        "entry": IGEL_BOOTREG_SIZE - 17,
-    }
-    DEFAULT_VALUES = {"ident_legacy": BOOTREG_IDENT}
-
-    ident_legacy: str
-    entry: bytes
+    ident_legacy: str = field(
+        metadata=DataModelMetadata(size=17, default=BOOTREG_IDENT)
+    )
+    entry: bytes = field(metadata=DataModelMetadata(size=IGEL_BOOTREG_SIZE - 17))
 
     def get_entries(self) -> dict[str, str]:
         """Return dictionary of all boot registry entries."""
@@ -209,8 +197,8 @@ class BootRegistryHeaderFactory:
     @staticmethod
     def is_legacy_boot_registry(data: bytes) -> bool:
         """Return whether bytes represent a legacy boot registry header."""
-        ident_legacy = BootRegistryHeader.MODEL_ATTRIBUTE_SIZES["ident_legacy"]
-        magic = BootRegistryHeader.MODEL_ATTRIBUTE_SIZES["magic"]
+        ident_legacy = BootRegistryHeader.get_attribute_size("ident_legacy")
+        magic = BootRegistryHeader.get_attribute_size("magic")
         if data[ident_legacy : ident_legacy + magic].decode() == BOOTREG_MAGIC:
             return False
         return True

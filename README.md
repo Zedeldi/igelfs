@@ -70,10 +70,10 @@ Most of the higher-level models are taken directly from `igelsdk.h`, with added 
 `BaseBytesModel` provides an abstract base class, with concrete methods for handling bytes, shared across various models.
 
 `BaseDataModel` is the parent class for all higher-level models.
-For these models to be instantiated directly from bytes, they must define `MODEL_ATTRIBUTE_SIZES`
-as a mapping of dataclass field names to the length of bytes to read.
+For these models to be instantiated directly from bytes, they must define fields
+with metadata containing the size of bytes to read.
 To set default values when instantiating models from nothing with `new`,
-add the value to the `DEFAULT_VALUES` dictionary of the model.
+add the `default` value to the metadata of the field.
 
 #### Section
 

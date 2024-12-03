@@ -1,10 +1,9 @@
 """Data models for a partition."""
 
 from dataclasses import dataclass, field
-from typing import ClassVar
 
 from igelfs.constants import MAX_EXTENT_NUM, ExtentType, PartitionType
-from igelfs.models.base import BaseDataGroup, BaseDataModel
+from igelfs.models.base import BaseDataGroup, BaseDataModel, DataModelMetadata
 from igelfs.models.collections import DataModelCollection
 
 
@@ -17,33 +16,34 @@ class PartitionHeader(BaseDataModel):
     n_blocks / (2 ** cluster_shift) == n_clusters
     """
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "type": 2,
-        "hdrlen": 2,
-        "partlen": 8,
-        "n_blocks": 8,
-        "offset_blocktable": 8,
-        "offset_blocks": 8,
-        "n_clusters": 4,
-        "cluster_shift": 2,
-        "n_extents": 2,
-        "name": 16,
-        "update_hash": 64,
-    }
-    DEFAULT_VALUES = {"hdrlen": 124}
-
-    type: int  # partition type
-    hdrlen: int  # length of the complete partition header (incl. extents)
-    partlen: int  # length of this partition (incl. header)
-    n_blocks: int  # number of uncompressed 1k blocks
-    offset_blocktable: int  # needed for compressed partitions
-    offset_blocks: int  # start of the compressed block clusters
-    n_clusters: int  # number of clusters
-    cluster_shift: int  # 2^x blocks make up a cluster
-    n_extents: int  # number of extents, if any
-    name: bytes  # optional character code (for pdir)
+    type: int = field(metadata=DataModelMetadata(size=2))  # partition type
+    hdrlen: int = field(  # length of the complete partition header (incl. extents)
+        metadata=DataModelMetadata(size=2, default=124)
+    )
+    partlen: int = field(  # length of this partition (incl. header)
+        metadata=DataModelMetadata(size=8)
+    )
+    n_blocks: int = field(  # number of uncompressed 1k blocks
+        metadata=DataModelMetadata(size=8)
+    )
+    offset_blocktable: int = field(  # needed for compressed partitions
+        metadata=DataModelMetadata(size=8)
+    )
+    offset_blocks: int = field(  # start of the compressed block clusters
+        metadata=DataModelMetadata(size=8)
+    )
+    n_clusters: int = field(metadata=DataModelMetadata(size=4))  # number of clusters
+    cluster_shift: int = field(  # 2^x blocks make up a cluster
+        metadata=DataModelMetadata(size=2)
+    )
+    n_extents: int = field(  # number of extents, if any
+        metadata=DataModelMetadata(size=2)
+    )
+    name: bytes = field(  # optional character code (for pdir)
+        metadata=DataModelMetadata(size=16)
+    )
     # A high level hash over almost all files, used to determine if an update is needed
-    update_hash: bytes
+    update_hash: bytes = field(metadata=DataModelMetadata(size=64))
 
     def __post_init__(self) -> None:
         """Handle model-specific data post-initialisation."""
@@ -58,7 +58,7 @@ class PartitionHeader(BaseDataModel):
     def get_type(self) -> PartitionType:
         """Return PartitionType from PartitionHeader instance."""
         type_ = int.from_bytes(
-            self.type.to_bytes(self.MODEL_ATTRIBUTE_SIZES["type"], byteorder="big"),
+            self.type.to_bytes(self.get_attribute_size("type"), byteorder="big"),
             byteorder="little",
         )
         return PartitionType(type_ & 0xFF)
@@ -72,17 +72,14 @@ class PartitionHeader(BaseDataModel):
 class PartitionExtent(BaseDataModel):
     """Dataclass to handle partition extent data."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "type": 2,
-        "offset": 8,
-        "length": 8,
-        "name": 8,
-    }
-
-    type: int  # type of extent -> ExtentType
-    offset: int  # offset from start of partition header
-    length: int  # size of data in bytes
-    name: bytes  # optional character code
+    type: int = field(  # type of extent -> ExtentType
+        metadata=DataModelMetadata(size=2)
+    )
+    offset: int = field(  # offset from start of partition header
+        metadata=DataModelMetadata(size=8)
+    )
+    length: int = field(metadata=DataModelMetadata(size=8))  # size of data in bytes
+    name: bytes = field(metadata=DataModelMetadata(size=8))  # optional character code
 
     def get_type(self) -> ExtentType:
         """Return ExtentType from PartitionExtent instance."""
@@ -97,30 +94,30 @@ class PartitionExtent(BaseDataModel):
 class PartitionExtents(BaseDataModel):
     """Dataclass to handle partition extents."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "n_extents": 2,
-        "extent": MAX_EXTENT_NUM * PartitionExtent.get_model_size(),
-    }
-
-    n_extents: int
-    extent: DataModelCollection[PartitionExtent]
+    n_extents: int = field(metadata=DataModelMetadata(size=2))
+    extent: DataModelCollection[PartitionExtent] = field(
+        metadata=DataModelMetadata(
+            size=MAX_EXTENT_NUM * PartitionExtent.get_model_size()
+        )
+    )
 
 
 @dataclass
 class PartitionExtentReadWrite(BaseDataModel):
     """Dataclass to handle partition extent read/write data."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "ext_num": 1,
-        "pos": 8,
-        "size": 8,
-        "data": 1,
-    }
-
-    ext_num: int  # extent number where to read from
-    pos: int  # position inside extent to start reading from
-    size: int  # size of data (WARNING limited to EXTENT_MAX_READ_WRITE_SIZE)
-    data: int  # destination/src pointer for the data to
+    ext_num: int = field(  # extent number where to read from
+        metadata=DataModelMetadata(size=1)
+    )
+    pos: int = field(  # position inside extent to start reading from
+        metadata=DataModelMetadata(size=8)
+    )
+    size: int = field(  # size of data (WARNING limited to EXTENT_MAX_READ_WRITE_SIZE)
+        metadata=DataModelMetadata(size=8)
+    )
+    data: int = field(  # destination/src pointer for the data to
+        metadata=DataModelMetadata(size=1)
+    )
 
 
 @dataclass

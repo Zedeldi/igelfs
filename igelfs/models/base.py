@@ -1,8 +1,9 @@
 """Concrete base classes for various data models."""
 
 import io
+from collections.abc import Mapping
 from dataclasses import Field, dataclass
-from typing import Any, ClassVar, get_args, get_origin
+from typing import Any, Iterator, get_args, get_origin
 
 from igelfs.models.abc import BaseBytesModel
 from igelfs.models.collections import DataModelCollection
@@ -11,11 +12,33 @@ from igelfs.utils import replace_bytes
 
 
 @dataclass
+class DataModelMetadata(Mapping, DataclassMixin):
+    """
+    Dataclass to provide metadata for data models.
+
+    The metadata for fields must be a mapping. This dataclass is used
+    to provide a specification for attribute names instead of a dictionary.
+    """
+
+    size: int
+    default: Any = None
+
+    def __getitem__(self, key: str) -> Any:
+        """Implement get item method for metadata."""
+        return self.to_dict(shallow=True)[key]
+
+    def __iter__(self) -> Iterator[str]:
+        """Implement iterating through metadata."""
+        yield from self.to_dict(shallow=True)
+
+    def __len__(self) -> int:
+        """Implement getting length of metadata."""
+        return len(self.to_dict(shallow=True))
+
+
+@dataclass
 class BaseDataModel(BaseBytesModel, DataclassMixin):
     """Concrete base class for data model."""
-
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]]
-    DEFAULT_VALUES: ClassVar[dict[str, Any]]
 
     def __len__(self) -> int:
         """Implement __len__ data model method."""
@@ -38,23 +61,39 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
             return fd.read()
 
     @classmethod
+    def _get_attribute_metadata(
+        cls: type["BaseDataModel"],
+    ) -> dict[str, Mapping[str, Any]]:
+        """Return dictionary of attribute metadata."""
+        return {field.name: field.metadata for field in cls.get_fields(init_only=True)}
+
+    @classmethod
+    def _get_attribute_metadata_by_name(
+        cls: type["BaseDataModel"], name: str
+    ) -> Mapping[str, Any]:
+        """Return metadata for specified attribute."""
+        return cls._get_attribute_metadata()[name]
+
+    @classmethod
     def get_model_size(cls: type["BaseDataModel"]) -> int:
         """Return expected total size of data for model."""
-        return sum(cls.MODEL_ATTRIBUTE_SIZES.values())
+        return sum(
+            metadata["size"] for metadata in cls._get_attribute_metadata().values()
+        )
 
     @classmethod
     def get_attribute_size(cls: type["BaseDataModel"], name: str) -> int:
         """Return size of data for attribute."""
-        return cls.MODEL_ATTRIBUTE_SIZES[name]
+        return cls._get_attribute_metadata_by_name(name)["size"]
 
     @classmethod
     def get_attribute_offset(cls: type["BaseDataModel"], name: str) -> int:
         """Return offset of bytes for attribute."""
         offset = 0
-        for attribute, size in cls.MODEL_ATTRIBUTE_SIZES.items():
+        for attribute, metadata in cls._get_attribute_metadata().items():
             if attribute == name:
                 return offset
-            offset += size
+            offset += metadata["size"]
         else:
             raise KeyError(f"Attribute '{name}' not found")
 
@@ -133,9 +172,10 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
     def _get_default_bytes(cls: type["BaseDataModel"]) -> bytes:
         """Return default bytes for new data model."""
         data = bytes(cls.get_model_size())
-        if not hasattr(cls, "DEFAULT_VALUES"):
-            return data
-        for name, value in cls.DEFAULT_VALUES.items():
+        for name, metadata in cls._get_attribute_metadata().items():
+            value = metadata.get("default")
+            if not value:
+                continue
             if callable(value):
                 value = value()
             offset = cls.get_attribute_offset(name)

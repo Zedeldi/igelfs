@@ -1,13 +1,12 @@
 """Data models for bootsplash structures."""
 
 import io
-from dataclasses import dataclass
-from typing import ClassVar
+from dataclasses import dataclass, field
 
 from PIL import Image
 
 from igelfs.constants import BOOTSPLASH_MAGIC
-from igelfs.models.base import BaseDataGroup, BaseDataModel
+from igelfs.models.base import BaseDataGroup, BaseDataModel, DataModelMetadata
 from igelfs.models.collections import DataModelCollection
 
 
@@ -15,11 +14,10 @@ from igelfs.models.collections import DataModelCollection
 class BootsplashHeader(BaseDataModel):
     """Dataclass to handle bootsplash header data."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {"magic": 14, "num_splashs": 1}
-    DEFAULT_VALUES = {"magic": BOOTSPLASH_MAGIC}
-
-    magic: str  # BOOTSPLASH_MAGIC
-    num_splashs: int
+    magic: str = field(  # BOOTSPLASH_MAGIC
+        metadata=DataModelMetadata(size=14, default=BOOTSPLASH_MAGIC)
+    )
+    num_splashs: int = field(metadata=DataModelMetadata(size=1))
 
     def __post_init__(self) -> None:
         """Verify magic string on initialisation."""
@@ -31,15 +29,9 @@ class BootsplashHeader(BaseDataModel):
 class Bootsplash(BaseDataModel):
     """Dataclass to handle bootsplash data."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "offset": 8,
-        "length": 8,
-        "ident": 8,
-    }
-
-    offset: int
-    length: int
-    ident: bytes
+    offset: int = field(metadata=DataModelMetadata(size=8))
+    length: int = field(metadata=DataModelMetadata(size=8))
+    ident: bytes = field(metadata=DataModelMetadata(size=8))
 
 
 @dataclass

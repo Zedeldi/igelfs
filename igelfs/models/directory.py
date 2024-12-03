@@ -1,7 +1,6 @@
 """Data models for IGEL filesystem directory."""
 
-from dataclasses import dataclass
-from typing import ClassVar
+from dataclasses import dataclass, field
 
 from igelfs.constants import (
     DIR_MAX_MINORS,
@@ -9,7 +8,7 @@ from igelfs.constants import (
     MAX_FRAGMENTS,
     PartitionType,
 )
-from igelfs.models.base import BaseDataModel
+from igelfs.models.base import BaseDataModel, DataModelMetadata
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.mixins import CRCMixin
 
@@ -18,27 +17,26 @@ from igelfs.models.mixins import CRCMixin
 class FragmentDescriptor(BaseDataModel):
     """Dataclass to handle fragment descriptors."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {"first_section": 4, "length": 4}
-
-    first_section: int
-    length: int  # number of sections
+    first_section: int = field(metadata=DataModelMetadata(size=4))
+    length: int = field(metadata=DataModelMetadata(size=4))  # number of sections
 
 
 @dataclass
 class PartitionDescriptor(BaseDataModel):
     """Dataclass to handle partition descriptors."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "minor": 4,
-        "type": 2,
-        "first_fragment": 2,
-        "n_fragments": 2,
-    }
-
-    minor: int  # a replication of igf_sect_hdr.partition_minor
-    type: int  # partition type, a replication of igf_part_hdr.type
-    first_fragment: int  # index of the first fragment
-    n_fragments: int  # number of additional fragments
+    minor: int = field(  # a replication of igf_sect_hdr.partition_minor
+        metadata=DataModelMetadata(size=4)
+    )
+    type: int = field(  # partition type, a replication of igf_part_hdr.type
+        metadata=DataModelMetadata(size=2)
+    )
+    first_fragment: int = field(  # index of the first fragment
+        metadata=DataModelMetadata(size=2)
+    )
+    n_fragments: int = field(  # number of additional fragments
+        metadata=DataModelMetadata(size=2)
+    )
 
     def get_type(self) -> PartitionType:
         """Return PartitionType from PartitionDescriptor instance."""
@@ -53,38 +51,40 @@ class Directory(BaseDataModel, CRCMixin):
     The directory resides in section #0 of the image.
     """
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "magic": 4,
-        "crc": 4,
-        "dir_type": 2,
-        "max_minors": 2,
-        "version": 2,
-        "dummy": 2,
-        "n_fragments": 4,
-        "max_fragments": 4,
-        "extension": 8,
-        "partition": DIR_MAX_MINORS * PartitionDescriptor.get_model_size(),
-        "fragment": MAX_FRAGMENTS * FragmentDescriptor.get_model_size(),
-    }
-    DEFAULT_VALUES = {
-        "magic": DIRECTORY_MAGIC,
-        "version": 1,
-        "max_minors": DIR_MAX_MINORS,
-        "max_fragments": MAX_FRAGMENTS,
-    }
     CRC_OFFSET = 4 + 4
 
-    magic: str  # DIRECTORY_MAGIC
-    crc: int
-    dir_type: int  # allows for future extensions
-    max_minors: int  # redundant, allows for dynamic part table
-    version: int  # update count, never used so far
-    dummy: int  # for future extensions
-    n_fragments: int  # total number of fragments
-    max_fragments: int  # redundant, allows for dynamic frag table
-    extension: bytes  # unspecified, for future extensions
-    partition: DataModelCollection[PartitionDescriptor]
-    fragment: DataModelCollection[FragmentDescriptor]
+    # DIRECTORY_MAGIC
+    magic: str = field(metadata=DataModelMetadata(size=4, default=DIRECTORY_MAGIC))
+    crc: int = field(metadata=DataModelMetadata(size=4))
+    dir_type: int = field(  # allows for future extensions
+        metadata=DataModelMetadata(size=2)
+    )
+    max_minors: int = field(  # redundant, allows for dynamic part table
+        metadata=DataModelMetadata(size=2, default=DIR_MAX_MINORS)
+    )
+    version: int = field(  # update count, never used so far
+        metadata=DataModelMetadata(size=2, default=1)
+    )
+    dummy: int = field(metadata=DataModelMetadata(size=2))  # for future extensions
+    n_fragments: int = field(  # total number of fragments
+        metadata=DataModelMetadata(size=4)
+    )
+    max_fragments: int = field(  # redundant, allows for dynamic frag table
+        metadata=DataModelMetadata(size=4, default=MAX_FRAGMENTS)
+    )
+    extension: bytes = field(  # unspecified, for future extensions
+        metadata=DataModelMetadata(size=8)
+    )
+    partition: DataModelCollection[PartitionDescriptor] = field(
+        metadata=DataModelMetadata(
+            size=DIR_MAX_MINORS * PartitionDescriptor.get_model_size()
+        )
+    )
+    fragment: DataModelCollection[FragmentDescriptor] = field(
+        metadata=DataModelMetadata(
+            size=MAX_FRAGMENTS * FragmentDescriptor.get_model_size()
+        )
+    )
 
     def __post_init__(self) -> None:
         """Verify magic string on initialisation."""

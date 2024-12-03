@@ -3,7 +3,7 @@
 import copy
 import io
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any
 
 import magic
 
@@ -13,7 +13,7 @@ from igelfs.constants import (
     IGF_SECT_HDR_MAGIC,
     SECTION_IMAGE_CRC_START,
 )
-from igelfs.models.base import BaseDataModel
+from igelfs.models.base import BaseDataModel, DataModelMetadata
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.hash import Hash, HashExclude, HashHeader
 from igelfs.models.mixins import CRCMixin
@@ -25,28 +25,31 @@ from igelfs.utils import get_start_of_section
 class SectionHeader(BaseDataModel):
     """Dataclass to handle section header data."""
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "crc": 4,
-        "magic": 4,
-        "section_type": 2,
-        "section_size": 2,
-        "partition_minor": 4,
-        "generation": 2,
-        "section_in_minor": 4,
-        "next_section": 4,
-        "reserved": 6,
-    }
-    DEFAULT_VALUES = {"magic": IGF_SECT_HDR_MAGIC[-1]}
-
-    crc: int  # crc of the rest of the section
-    magic: int  # magic number (erase count long ago)
-    section_type: int
-    section_size: int  # log2((section size in bytes) / 65536)
-    partition_minor: int  # partition number (driver minor number)
-    generation: int  # update generation count
-    section_in_minor: int  # n = 0,...,(number of sect.-1)
-    next_section: int  # index of the next section or 0xffffffff = end of chain
-    reserved: bytes  # section header is 32 bytes but 6 bytes are unused
+    crc: int = field(  # crc of the rest of the section
+        metadata=DataModelMetadata(size=4)
+    )
+    magic: int = field(  # magic number (erase count long ago)
+        metadata=DataModelMetadata(size=4, default=IGF_SECT_HDR_MAGIC[-1])
+    )
+    section_type: int = field(metadata=DataModelMetadata(size=2))
+    section_size: int = field(  # log2((section size in bytes) / 65536)
+        metadata=DataModelMetadata(size=2)
+    )
+    partition_minor: int = field(  # partition number (driver minor number)
+        metadata=DataModelMetadata(size=4)
+    )
+    generation: int = field(  # update generation count
+        metadata=DataModelMetadata(size=2)
+    )
+    section_in_minor: int = field(  # n = 0,...,(number of sect.-1)
+        metadata=DataModelMetadata(size=4)
+    )
+    next_section: int = field(  # index of the next section or 0xffffffff = end of chain
+        metadata=DataModelMetadata(size=4)
+    )
+    reserved: bytes = field(  # section header is 32 bytes but 6 bytes are unused
+        metadata=DataModelMetadata(size=6)
+    )
 
     def __post_init__(self) -> None:
         """Verify magic number on initialisation."""
@@ -63,17 +66,14 @@ class Section(BaseDataModel, CRCMixin):
     post-initialisation to add these attributes.
     """
 
-    MODEL_ATTRIBUTE_SIZES: ClassVar[dict[str, int]] = {
-        "header": IGF_SECT_HDR_LEN,
-        "data": IGF_SECT_DATA_LEN,
-    }
-    DEFAULT_VALUES = {"header": SectionHeader.new()}
     CRC_OFFSET = SECTION_IMAGE_CRC_START
 
-    header: SectionHeader
+    header: SectionHeader = field(
+        metadata=DataModelMetadata(size=IGF_SECT_HDR_LEN, default=SectionHeader.new())
+    )
     partition: Partition | None = field(init=False)
     hash: Hash | None = field(init=False)
-    data: bytes
+    data: bytes = field(metadata=DataModelMetadata(size=IGF_SECT_DATA_LEN))
 
     def __post_init__(self) -> None:
         """Parse data into optional additional attributes."""
