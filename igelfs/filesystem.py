@@ -1,5 +1,6 @@
 """Python implementation to handle IGEL filesystems."""
 
+import copy
 import itertools
 import os
 from functools import cached_property
@@ -338,22 +339,31 @@ class Filesystem:
                 )
         return info
 
+    def create_partition(
+        self, sections: DataModelCollection[Section], partition_minor: int
+    ) -> None:
+        """Write sections to unused space and create directory entry."""
+        sections = copy.deepcopy(sections)
+        first_section = self.directory.free_list.first_section
+        for index, section in enumerate(sections):
+            section.header.partition_minor = partition_minor
+            # Cannot rely on section_in_minor due to upstream bug where
+            # partition_minor was written to this field
+            section.header.section_in_minor = index
+            section.header.next_section = first_section + index + 1
+        sections[-1].header.next_section = SECTION_END_OF_CHAIN
+        for section in sections:
+            section.update_crc()
+        self.write_sections_to_unused(sections)
+        directory = self.directory
+        directory.create_entry(partition_minor, first_section, len(sections))
+        self.write_directory(directory)
+
     def rebuild(self, path: str | Path) -> "Filesystem":
         """Rebuild filesystem to new image at path and return new instance."""
         filesystem = self.new(path, self.section_count - 1)
         filesystem.write_boot_registry(self.boot_registry)
         for partition_minor in sorted(self.partition_minors_by_directory):
             sections = self.find_sections_by_directory(partition_minor)
-            first_section = filesystem.directory.free_list.first_section
-            for index, section in enumerate(sections):
-                # Cannot rely on section_in_minor due to upstream bug where
-                # partition_minor was written to this field
-                section.header.next_section = first_section + index + 1
-            sections[-1].header.next_section = SECTION_END_OF_CHAIN
-            for section in sections:
-                section.update_crc()
-            filesystem.write_sections_to_unused(sections)
-            directory = filesystem.directory
-            directory.create_entry(partition_minor, first_section, len(sections))
-            filesystem.write_directory(directory)
+            filesystem.create_partition(sections, partition_minor)
         return filesystem
