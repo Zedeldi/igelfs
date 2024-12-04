@@ -121,12 +121,12 @@ class Filesystem:
         """Create new IGEL filesystem at path of size in sections and return instance."""
         boot_registry = BootRegistryHeader.new()
         directory = Directory.new()
-        directory.free_list.first_section = 1
-        directory.free_list.length = size
+        directory.init_free_list()
+        directory.update_free_list(first_section=1, length=size)
         # Directory does not fill rest of section #0
         # Pad out with null bytes
         directory_padding = bytes(DIR_SIZE - directory.get_actual_size())
-        sections = [Section.new() for _ in range(size)]
+        sections = [bytes(IGF_SECTION_SIZE) for _ in range(size)]
         with open(path, "wb") as fd:
             for data in (boot_registry, directory, directory_padding, *sections):
                 if isinstance(data, bytes):
@@ -209,19 +209,23 @@ class Filesystem:
         """
         Write collection of sections to unused space, according to free list.
 
-        Returns total number of written bytes.
+        Return first section of where data has been written.
         """
         directory = self.directory
         free_list = directory.free_list
+        first_section = free_list.first_section
         if len(sections) > free_list.length:
             raise ValueError(
                 f"Length of sections '{len(sections)}' is greater than free space '{free_list.length}'"
             )
-        self.write_sections_at_index(sections, free_list.first_section)
+        self.write_sections_at_index(sections, first_section)
         if update_directory:
-            free_list.first_section += len(sections)
-            free_list.length -= len(sections)
+            directory.update_free_list(
+                first_section=first_section + len(sections),
+                length=free_list.length - len(sections),
+            )
             self.write_directory(directory)
+        return first_section
 
     def get_section_by_offset(self, offset: int, size: int) -> Section:
         """Return Section of image by offset and size."""

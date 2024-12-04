@@ -94,7 +94,23 @@ class Directory(BaseDataModel, CRCMixin):
     @property
     def free_list(self) -> FragmentDescriptor:
         """Return fragment descriptor for free list."""
-        return self.fragment[self.partition[0].first_fragment]
+        partition = self.find_partition_by_partition_type(PartitionType.IGEL_FREELIST)
+        if not partition:
+            raise ValueError("Free list not found")
+        return self.fragment[partition.first_fragment]
+
+    def init_free_list(self) -> None:
+        """Initialise free list of directory."""
+        partition = self.partition[0]
+        partition.minor = 0
+        partition.type = PartitionType.IGEL_FREELIST
+        partition.first_fragment = 0
+        partition.n_fragments = 1
+
+    def update_free_list(self, first_section: int, length: int) -> None:
+        """Update free list with specified data."""
+        self.free_list.first_section = first_section
+        self.free_list.length = length
 
     @property
     def partition_minors(self) -> set[int]:
@@ -102,6 +118,15 @@ class Directory(BaseDataModel, CRCMixin):
         partition_minors = {partition.minor for partition in self.partition}
         partition_minors.remove(0)  # Partition minor 0 does not exist
         return partition_minors
+
+    def find_partition_by_partition_type(
+        self, partition_type: PartitionType
+    ) -> PartitionDescriptor | None:
+        """Return PartitionDescriptor with matching partition type."""
+        for partition in self.partition:
+            if partition.type == partition_type:
+                return partition
+        return None
 
     def find_partition_by_partition_minor(
         self, partition_minor: int
@@ -162,6 +187,7 @@ class Directory(BaseDataModel, CRCMixin):
         partition.n_fragments = 1
         fragment.first_section = first_section
         fragment.length = length
+        self.update_crc()
 
     def update_entry(
         self, partition_minor: int, first_section: int, length: int
@@ -174,3 +200,4 @@ class Directory(BaseDataModel, CRCMixin):
             )
         fragment.first_section = first_section
         fragment.length = length
+        self.update_crc()
