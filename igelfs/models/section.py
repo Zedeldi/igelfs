@@ -11,6 +11,7 @@ from igelfs.constants import (
     IGF_SECT_DATA_LEN,
     IGF_SECT_HDR_LEN,
     IGF_SECT_HDR_MAGIC,
+    SECTION_END_OF_CHAIN,
     SECTION_IMAGE_CRC_START,
 )
 from igelfs.models.base import BaseDataModel, DataModelMetadata
@@ -126,7 +127,7 @@ class Section(BaseDataModel, CRCMixin):
     @property
     def end_of_chain(self) -> bool:
         """Return whether this section is the last in the chain."""
-        return self.header.next_section == 0xFFFFFFFF
+        return self.header.next_section == SECTION_END_OF_CHAIN
 
     def _to_bytes_excluding_by_indices(self, hash_: Hash) -> bytes:
         """
