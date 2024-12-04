@@ -32,15 +32,15 @@ class SectionHeader(BaseDataModel):
     magic: int = field(  # magic number (erase count long ago)
         metadata=DataModelMetadata(size=4, default=IGF_SECT_HDR_MAGIC[-1])
     )
-    section_type: int = field(metadata=DataModelMetadata(size=2))
+    section_type: int = field(metadata=DataModelMetadata(size=2, default=1))
     section_size: int = field(  # log2((section size in bytes) / 65536)
-        metadata=DataModelMetadata(size=2)
+        metadata=DataModelMetadata(size=2, default=2)
     )
     partition_minor: int = field(  # partition number (driver minor number)
         metadata=DataModelMetadata(size=4)
     )
     generation: int = field(  # update generation count
-        metadata=DataModelMetadata(size=2)
+        metadata=DataModelMetadata(size=2, default=1)
     )
     section_in_minor: int = field(  # n = 0,...,(number of sect.-1)
         metadata=DataModelMetadata(size=4)
@@ -212,6 +212,13 @@ class Section(BaseDataModel, CRCMixin):
         if pad:
             sections[-1] = sections[-1].ljust(IGF_SECT_DATA_LEN, b"\x00")
         return sections
+
+    @classmethod
+    def new(cls: type["Section"], **kwargs) -> "Section":
+        """Return new section instance with default data."""
+        section = super().new(**kwargs)
+        section.resize()
+        return section
 
     def resize(self) -> None:
         """

@@ -187,9 +187,18 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
         return data
 
     @classmethod
-    def new(cls: type["BaseDataModel"]) -> "BaseDataModel":
+    def new(cls: type["BaseDataModel"], **kwargs) -> "BaseDataModel":
         """Return new data model instance with default data."""
-        return cls.from_bytes(cls._get_default_bytes())
+        model = cls.from_bytes(cls._get_default_bytes())
+        for name, value in kwargs.items():
+            try:
+                cls.get_field_by_name(name, init_only=False)
+            except ValueError as error:
+                raise ValueError(
+                    f"Cannot instantiate model '{cls.__name__}' with field '{name}'"
+                ) from error
+            setattr(model, name, value)
+        return model
 
 
 class BaseDataGroup(BaseBytesModel, DataclassMixin):

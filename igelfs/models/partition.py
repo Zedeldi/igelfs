@@ -14,6 +14,8 @@ class PartitionHeader(BaseDataModel):
 
     Contains the partition and header size, update hash and name for directory.
     n_blocks / (2 ** cluster_shift) == n_clusters
+    hdrlen + <length of extents payload> + (n_blocks * 1024) == partlen
+    offset_blocktable == offset_blocks == start of actual payload (after extents)
     """
 
     type: int = field(metadata=DataModelMetadata(size=2))  # partition type
@@ -27,14 +29,14 @@ class PartitionHeader(BaseDataModel):
         metadata=DataModelMetadata(size=8)
     )
     offset_blocktable: int = field(  # needed for compressed partitions
-        metadata=DataModelMetadata(size=8)
+        metadata=DataModelMetadata(size=8, default=124)
     )
     offset_blocks: int = field(  # start of the compressed block clusters
-        metadata=DataModelMetadata(size=8)
+        metadata=DataModelMetadata(size=8, default=124)
     )
     n_clusters: int = field(metadata=DataModelMetadata(size=4))  # number of clusters
     cluster_shift: int = field(  # 2^x blocks make up a cluster
-        metadata=DataModelMetadata(size=2)
+        metadata=DataModelMetadata(size=2, default=5)
     )
     n_extents: int = field(  # number of extents, if any
         metadata=DataModelMetadata(size=2)
