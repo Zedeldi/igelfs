@@ -12,6 +12,7 @@ from igelfs.constants import (
     IGEL_BOOTREG_OFFSET,
     IGEL_BOOTREG_SIZE,
     IGF_SECTION_SIZE,
+    SECTION_END_OF_CHAIN,
     SectionSize,
 )
 from igelfs.lxos import LXOSParser
@@ -336,3 +337,23 @@ class Filesystem:
                     partition_minor
                 )
         return info
+
+    def rebuild(self, path: str | Path) -> "Filesystem":
+        """Rebuild filesystem to new image at path and return new instance."""
+        filesystem = self.new(path, self.section_count - 1)
+        filesystem.write_boot_registry(self.boot_registry)
+        for partition_minor in sorted(self.partition_minors_by_directory):
+            sections = self.find_sections_by_directory(partition_minor)
+            first_section = filesystem.directory.free_list.first_section
+            for index, section in enumerate(sections):
+                # Cannot rely on section_in_minor due to upstream bug where
+                # partition_minor was written to this field
+                section.header.next_section = first_section + index + 1
+            sections[-1].header.next_section = SECTION_END_OF_CHAIN
+            for section in sections:
+                section.update_crc()
+            filesystem.write_sections_to_unused(sections)
+            directory = filesystem.directory
+            directory.create_entry(partition_minor, first_section, len(sections))
+            filesystem.write_directory(directory)
+        return filesystem
