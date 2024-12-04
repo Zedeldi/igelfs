@@ -26,6 +26,7 @@ def get_parser() -> ArgumentParser:
     parser.add_argument("path", help="path to the IGEL filesystem image")
     parser.add_argument("--inf", help="path to lxos.inf configuration file")
     parser.add_argument("--json", action="store_true", help="format result as JSON")
+    parser.add_argument("--rebuild", help="rebuild filesystem to new image")
     parser.add_argument("--extract", help="path to dump all filesystem content")
     parser.add_argument(
         "--convert", help="path for converting filesystem to GPT partitioned disk"
@@ -47,6 +48,8 @@ def main() -> None:
     check_args(args)
     filesystem = Filesystem(args.path)
     lxos_config = LXOSParser(args.inf) if args.inf else None
+    if args.rebuild:
+        filesystem.rebuild(args.rebuild)
     if args.extract:
         filesystem.extract_to(args.extract, lxos_config)
     if args.convert:
