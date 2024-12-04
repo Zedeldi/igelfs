@@ -171,6 +171,16 @@ class Directory(BaseDataModel, CRCMixin):
         else:
             raise ValueError("No empty fragment descriptors found")
 
+    def _get_n_fragments(self) -> int:
+        """Return number of fragments in directory."""
+        return len(
+            [
+                fragment
+                for fragment in self.fragment
+                if fragment.first_section and fragment.length
+            ]
+        )
+
     def create_entry(
         self, partition_minor: int, first_section: int, length: int
     ) -> None:
@@ -179,7 +189,8 @@ class Directory(BaseDataModel, CRCMixin):
             raise ValueError(
                 f"Fragment for partition minor #{partition_minor} already exists"
             )
-        partition, _ = self._get_empty_partition()
+        # Partition descriptors are stored at index of partition_minor
+        partition = self.partition[partition_minor]
         fragment, first_fragment = self._get_empty_fragment()
         partition.minor = partition_minor
         partition.type = PartitionType.IGEL_COMPRESSED
@@ -187,6 +198,7 @@ class Directory(BaseDataModel, CRCMixin):
         partition.n_fragments = 1
         fragment.first_section = first_section
         fragment.length = length
+        self.n_fragments = self._get_n_fragments()
         self.update_crc()
 
     def update_entry(
