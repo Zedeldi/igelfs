@@ -2,6 +2,7 @@
 
 import copy
 import itertools
+import math
 import os
 from functools import cached_property
 from pathlib import Path
@@ -14,6 +15,7 @@ from igelfs.constants import (
     IGEL_BOOTREG_SIZE,
     IGF_SECTION_SIZE,
     SECTION_END_OF_CHAIN,
+    PartitionType,
     SectionSize,
 )
 from igelfs.lxos import LXOSParser
@@ -26,6 +28,7 @@ from igelfs.models import (
     Partition,
     PartitionHeader,
     Section,
+    SectionHeader,
 )
 from igelfs.models.base import BaseDataModel
 from igelfs.utils import get_section_of, get_start_of_section
@@ -229,6 +232,68 @@ class Filesystem:
             self.write_directory(directory)
         return first_section
 
+    def write_partition(
+        self, sections: DataModelCollection[Section], partition_minor: int
+    ) -> None:
+        """Write sections to unused space and create directory entry."""
+        sections = copy.deepcopy(sections)
+        first_section = self.directory.free_list.first_section
+        for index, section in enumerate(sections):
+            section.header.partition_minor = partition_minor
+            # Cannot rely on section_in_minor due to upstream bug where
+            # partition_minor was written to this field
+            section.header.section_in_minor = index
+            section.header.next_section = first_section + index + 1
+        sections[-1].header.next_section = SECTION_END_OF_CHAIN
+        for section in sections:
+            section.update_crc()
+        self.write_sections_to_unused(sections)
+        directory = self.directory
+        directory.create_entry(partition_minor, first_section, len(sections))
+        self.write_directory(directory)
+
+    @staticmethod
+    def create_partition_from_bytes(
+        data: bytes, type_: int | PartitionType = 4
+    ) -> DataModelCollection[Section]:
+        """Create partition from bytes and return collection of sections."""
+        size = math.ceil(len(data) / 1024)
+        partition = Partition(
+            PartitionHeader.new(
+                type=type_,
+                partlen=124 + size,
+                n_blocks=size,
+                n_clusters=math.ceil(size / (2**5)),
+            )
+        )
+        payload = Section.split_into_sections(
+            partition.to_bytes() + data,
+            pad=True,
+        )
+        sections = [
+            Section.from_bytes(SectionHeader.new().to_bytes() + section)
+            for section in payload
+        ]
+        return sections
+
+    @classmethod
+    def create_partition_from_file(
+        cls: type["Filesystem"], path: str | Path, *args, **kwargs
+    ) -> DataModelCollection[Section]:
+        """Create partition from file and return collection of sections."""
+        with open(path, "rb") as fd:
+            data = fd.read()
+        return cls.create_partition_from_bytes(data, *args, **kwargs)
+
+    def rebuild(self, path: str | Path) -> "Filesystem":
+        """Rebuild filesystem to new image at path and return new instance."""
+        filesystem = self.new(path, self.section_count - 1)
+        filesystem.write_boot_registry(self.boot_registry)
+        for partition_minor in sorted(self.partition_minors_by_directory):
+            sections = self.find_sections_by_directory(partition_minor)
+            filesystem.write_partition(sections, partition_minor)
+        return filesystem
+
     def get_section_by_offset(self, offset: int, size: int) -> Section:
         """Return Section of image by offset and size."""
         data = self.get_bytes(offset, size)
@@ -338,32 +403,3 @@ class Filesystem:
                     partition_minor
                 )
         return info
-
-    def create_partition(
-        self, sections: DataModelCollection[Section], partition_minor: int
-    ) -> None:
-        """Write sections to unused space and create directory entry."""
-        sections = copy.deepcopy(sections)
-        first_section = self.directory.free_list.first_section
-        for index, section in enumerate(sections):
-            section.header.partition_minor = partition_minor
-            # Cannot rely on section_in_minor due to upstream bug where
-            # partition_minor was written to this field
-            section.header.section_in_minor = index
-            section.header.next_section = first_section + index + 1
-        sections[-1].header.next_section = SECTION_END_OF_CHAIN
-        for section in sections:
-            section.update_crc()
-        self.write_sections_to_unused(sections)
-        directory = self.directory
-        directory.create_entry(partition_minor, first_section, len(sections))
-        self.write_directory(directory)
-
-    def rebuild(self, path: str | Path) -> "Filesystem":
-        """Rebuild filesystem to new image at path and return new instance."""
-        filesystem = self.new(path, self.section_count - 1)
-        filesystem.write_boot_registry(self.boot_registry)
-        for partition_minor in sorted(self.partition_minors_by_directory):
-            sections = self.find_sections_by_directory(partition_minor)
-            filesystem.create_partition(sections, partition_minor)
-        return filesystem
