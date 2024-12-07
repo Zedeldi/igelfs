@@ -197,6 +197,12 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
                 raise ValueError(
                     f"Cannot instantiate model '{cls.__name__}' with field '{name}'"
                 ) from error
+            try:
+                if len(value) != cls.get_attribute_size(name):
+                    raise ValueError(f"Incorrect size for attribute '{name}'")
+            except TypeError:
+                # value does not have a length implementation
+                pass
             setattr(model, name, value)
         return model
 

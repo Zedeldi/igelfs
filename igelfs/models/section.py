@@ -213,13 +213,6 @@ class Section(BaseDataModel, CRCMixin):
             sections[-1] = sections[-1].ljust(IGF_SECT_DATA_LEN, b"\x00")
         return sections
 
-    @classmethod
-    def new(cls: type["Section"], **kwargs) -> "Section":
-        """Return new section instance with default data."""
-        section = super().new(**kwargs)
-        section.resize()
-        return section
-
     def resize(self) -> None:
         """
         Resize payload of Section instance to correct size and update CRC.
