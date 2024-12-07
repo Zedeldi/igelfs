@@ -43,6 +43,24 @@ def get_parser() -> ArgumentParser:
     parser_add.add_argument("input", help="path to file for partition")
     parser_add.add_argument("minor", type=int, help="partition minor")
     parser_add.add_argument("--type", type=int, help="partition type")
+    parser_boot_registry = subparsers.add_parser(
+        "boot-registry", help="manage boot registry of filesystem"
+    )
+    parser_boot_registry_subparsers = parser_boot_registry.add_subparsers(
+        dest="action", help="action to perform for boot registry", required=True
+    )
+    parser_boot_registry_get = parser_boot_registry_subparsers.add_parser(
+        "get", help="get value from boot registry"
+    )
+    parser_boot_registry_get.add_argument("--key", help="key to get")
+    parser_boot_registry_get.add_argument(
+        "--json", action="store_true", help="format result as JSON"
+    )
+    parser_boot_registry_set = parser_boot_registry_subparsers.add_parser(
+        "set", help="set key to value in boot registry"
+    )
+    parser_boot_registry_set.add_argument("key", help="key to set")
+    parser_boot_registry_set.add_argument("value", help="value to set")
     parser_rebuild = subparsers.add_parser(
         "rebuild", help="rebuild filesystem to new image"
     )
@@ -86,6 +104,19 @@ def main() -> None:
                 opts["type_"] = args.type
             sections = Filesystem.create_partition_from_file(args.input, **opts)
             filesystem.write_partition(sections, args.minor)
+        case "boot-registry":
+            match args.action:
+                case "get":
+                    entries = filesystem.boot_registry.get_entries()
+                    value = {args.key: entries.get(args.key)} if args.key else entries
+                    if args.json:
+                        print(json.dumps(value))
+                    else:
+                        pprint(value.get(args.key) if args.key else value)
+                case "set":
+                    boot_registry = filesystem.boot_registry
+                    boot_registry.set_entry(args.key, args.value)
+                    filesystem.write_boot_registry(boot_registry)
         case "rebuild":
             filesystem.rebuild(args.output)
         case "extract":
