@@ -44,6 +44,9 @@ can be used to find the first section index for a given partition minor, without
 the need for linearly searching the entire image.
 """
 
+from igelfs import constants, models
 from igelfs.filesystem import Filesystem
+from igelfs.keys import IGEL_PUBLIC_KEYS
+from igelfs.lxos import LXOSParser
 
-__all__ = ["Filesystem"]
+__all__ = ["Filesystem", "IGEL_PUBLIC_KEYS", "LXOSParser", "constants", "models"]
