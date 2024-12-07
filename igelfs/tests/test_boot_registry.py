@@ -38,7 +38,7 @@ def test_boot_registry_magic(
     assert boot_registry.magic == BOOTREG_MAGIC
 
 
-def test_boot_registry_entries(
+def test_boot_registry_get_entries(
     boot_registry: BootRegistryHeader | BootRegistryHeaderLegacy,
 ) -> None:
     """Test getting entries of boot registry."""
@@ -61,3 +61,16 @@ def test_boot_registry_entries(
             raise ValueError(
                 f"Unknown boot registry header type '{type(boot_registry)}'"
             )
+
+
+@pytest.mark.parametrize("random_string", [8, 64, 256], indirect=True)
+def test_boot_registry_set_entries(
+    boot_registry: BootRegistryHeader | BootRegistryHeaderLegacy,
+    random_string: str,
+) -> None:
+    """Test setting entries of boot registry."""
+    key = "key"
+    value = random_string
+    boot_registry.set_entry(key, value)
+    assert key in boot_registry.get_entries()
+    assert boot_registry.get_entries()[key] == value

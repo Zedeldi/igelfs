@@ -1,9 +1,11 @@
 """Data models for the boot registry of a filesystem image."""
 
 from abc import abstractmethod
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
+from typing import ClassVar
 
 from igelfs.constants import BOOTREG_IDENT, BOOTREG_MAGIC, IGEL_BOOTREG_SIZE
 from igelfs.models.base import BaseDataModel, DataModelMetadata
@@ -56,6 +58,19 @@ class BootRegistryEntry(BaseDataModel):
         """
         return tuple(map(partial(int, base=2), self._flag_bits))
 
+    @classmethod
+    def get_flag_from_values(
+        cls: type["BootRegistryEntry"],
+        next_block_index: int,
+        next_block_present: bool,
+        key_length: int,
+    ) -> int:
+        """Return flag integer for specified values."""
+        next_block_index = bin(next_block_index).removeprefix("0b").zfill(9)
+        next_block_present = int(next_block_present)
+        key_length = bin(key_length).removeprefix("0b").zfill(6)
+        return int(f"{next_block_index}{next_block_present}{key_length}", 2)
+
     @property
     def next_block_index(self) -> int:
         """Return index of next block."""
@@ -81,6 +96,13 @@ class BootRegistryEntry(BaseDataModel):
         """Return value for entry."""
         return self.data[self.key_length :].rstrip(b"\x00").decode()
 
+    @value.setter
+    def value(self, value: str) -> None:
+        """Set value for boot registry entry."""
+        self.data = f"{self.key}{value}".encode().ljust(
+            self.get_attribute_size("data"), b"\x00"
+        )
+
 
 @dataclass
 class BaseBootRegistryHeader(BaseDataModel):
@@ -96,6 +118,11 @@ class BaseBootRegistryHeader(BaseDataModel):
     @abstractmethod
     def get_entries(self) -> dict[str, str]:
         """Return dictionary of all boot registry entries."""
+        ...
+
+    @abstractmethod
+    def set_entry(self, key: str, value: str) -> None:
+        """Set entry of boot registry."""
         ...
 
 
@@ -144,22 +171,86 @@ class BootRegistryHeader(BaseBootRegistryHeader):
                 f"Unexpected magic string '{self.magic}' for boot registry"
             )
 
-    def get_entries(self) -> dict[str, str]:
-        """Return dictionary of all boot registry entries."""
-        entries = {}
-        key = None
+    def _get_entries_for_key(self, key: str) -> DataModelCollection[BootRegistryEntry]:
+        """Return collection of all entries for key."""
+        entries = DataModelCollection()
         for entry in self.entry:
             if not entry.value:
                 continue
-            if key:  # value continues previous entry
-                entries[key] += entry.value
-            else:  # new value
-                entries[entry.key] = entry.value
-            if entry.next_block_present:  # preserve key for next entry
-                key = key or entry.key
-            else:  # reset key
-                key = None
+            if entry.key == key:
+                entries.append(entry)
+                while entry.next_block_present:
+                    entry = self.entry[entry.next_block_index]
+                    entries.append(entry)
+                break
         return entries
+
+    @property
+    def _entry_keys(self) -> Iterator[str]:
+        """Return iterator of keys for all entries."""
+        for entry in self.entry:
+            if not entry.key:
+                continue
+            yield entry.key
+
+    def get_entries(self) -> dict[str, str]:
+        """Return dictionary of all boot registry entries."""
+        entries = {}
+        for key in self._entry_keys:
+            entries[key] = "".join(
+                [entry.value for entry in self._get_entries_for_key(key)]
+            )
+        return entries
+
+    def _get_next_entry_index(self, exclude: Iterable[int] | None = None) -> int:
+        """Return next index for free entry."""
+        for index, entry in enumerate(self.entry):
+            if exclude and index in exclude:
+                continue
+            if not entry.value:
+                return index
+        else:
+            raise ValueError("No free entry found")
+
+    def _new_entry(self, key: str, value: str) -> dict[int, BootRegistryEntry]:
+        """Create and return dictionary of indexes to entries for given values."""
+        entries = {}
+        next_block_index = 0
+        exclude = []
+        while value:
+            key_length = len(key)
+            index = next_block_index or self._get_next_entry_index()
+            exclude.append(index)
+            limit = BootRegistryEntry.get_attribute_size("data") - key_length
+            if limit < len(value):  # value spans multiple entries
+                next_block_index = self._get_next_entry_index(exclude=exclude)
+                next_block_present = True
+            else:
+                next_block_index = 0
+                next_block_present = False
+            flag = BootRegistryEntry.get_flag_from_values(
+                next_block_index, next_block_present, key_length
+            )
+            data = f"{key}{value[:limit]}".encode().ljust(
+                BootRegistryEntry.get_attribute_size("data"), b"\x00"
+            )
+            entry = BootRegistryEntry.new(flag=flag, data=data)
+            entries[index] = entry
+            value = value[limit:]
+            key = ""
+        return entries
+
+    def set_entry(self, key: str, value: str) -> None:
+        """Set entry of boot registry."""
+        entries = self._get_entries_for_key(key)
+        for entry in entries:
+            # must preserve index of all entries for next_block_index
+            # do not remove entries - just replace with an empty one
+            index = self.entry.index(entry)
+            self.entry[index] = BootRegistryEntry.new()
+        for index, entry in self._new_entry(key, value).items():
+            self.entry[index] = entry
+        return None
 
 
 @dataclass
@@ -170,10 +261,23 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
     The boot registry resides in section #0 of the image.
     """
 
+    EOF: ClassVar[str] = "EOF"
+
     ident_legacy: str = field(
         metadata=DataModelMetadata(size=17, default=BOOTREG_IDENT)
     )
     entry: bytes = field(metadata=DataModelMetadata(size=IGEL_BOOTREG_SIZE - 17))
+
+    @classmethod
+    def _convert_entries_from_dict_to_bytes(
+        cls: type["BootRegistryHeaderLegacy"], entries: dict[str, str], pad: bool = True
+    ) -> bytes:
+        """Convert dictionary of entries to bytes."""
+        data = "\n".join(f"{key}={value}" for key, value in entries.items())
+        data = f"\n{data}\n{cls.EOF}\n".encode()
+        if pad:
+            data = data.ljust(cls.get_attribute_size("entry"), b"\x00")
+        return data
 
     def get_entries(self) -> dict[str, str]:
         """Return dictionary of all boot registry entries."""
@@ -181,7 +285,7 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
         for entry in self.entry.decode().splitlines():
             if not entry:
                 continue
-            if entry == "EOF":
+            if entry == self.EOF:
                 break
             try:
                 key, value = entry.split("=")
@@ -189,6 +293,12 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
                 continue
             entries[key] = value
         return entries
+
+    def set_entry(self, key: str, value: str) -> None:
+        """Set entry of boot registry."""
+        entries = self.get_entries()
+        entries[key] = value
+        self.entry = self._convert_entries_from_dict_to_bytes(entries)
 
 
 class BootRegistryHeaderFactory:

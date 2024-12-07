@@ -1,6 +1,7 @@
 """Testing configuration."""
 
 import random
+import string
 
 import pytest
 
@@ -96,3 +97,9 @@ def sys(filesystem: Filesystem) -> DataModelCollection[Section]:
 def bspl(filesystem: Filesystem) -> DataModelCollection[Section]:
     """Return bspl Section instances from filesystem."""
     return filesystem.find_sections_by_directory(23)
+
+
+@pytest.fixture()
+def random_string(request: pytest.FixtureRequest) -> str:
+    """Return random string of specified length."""
+    return "".join(random.choice(string.ascii_lowercase) for _ in range(request.param))
