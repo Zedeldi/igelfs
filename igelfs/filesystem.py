@@ -388,6 +388,14 @@ class Filesystem:
             "path": self.path.as_posix(),
             "size": self.size,
             "section_count": self.section_count,
+            "boot_registry": {
+                "type": (
+                    "legacy"
+                    if isinstance(self.boot_registry, BootRegistryHeaderLegacy)
+                    else "structured"
+                ),
+                "entries": self.boot_registry.get_entries(),
+            },
             "partitions": {
                 partition_minor: {}
                 for partition_minor in sorted(self.partition_minors_by_directory)
