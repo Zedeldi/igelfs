@@ -31,6 +31,9 @@ def get_parser() -> ArgumentParser:
         "info", help="display information about filesystem"
     )
     parser_info.add_argument(
+        "--section-count", action="store_true", help="get section count"
+    )
+    parser_info.add_argument(
         "--json", action="store_true", help="format result as JSON"
     )
     parser_new = subparsers.add_parser("new", help="create a new filesystem")
@@ -124,7 +127,13 @@ def main() -> None:
         case "convert":
             Disk.from_filesystem(args.output, filesystem, lxos_config)
         case "info":
-            info = filesystem.get_info(lxos_config)
+            if args.section_count:
+                if args.json:
+                    info = {"section_count": filesystem.section_count}
+                else:
+                    info = filesystem.section_count
+            else:
+                info = filesystem.get_info(lxos_config)
             if args.json:
                 print(json.dumps(info))
             else:
