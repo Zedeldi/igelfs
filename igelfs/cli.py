@@ -31,10 +31,10 @@ def get_parser() -> ArgumentParser:
         "info", help="display information about filesystem"
     )
     parser_info.add_argument(
-        "--section-count", action="store_true", help="get section count"
+        "--section-count", "-s", action="store_true", help="get section count"
     )
     parser_info.add_argument(
-        "--json", action="store_true", help="format result as JSON"
+        "--json", "-j", action="store_true", help="format result as JSON"
     )
     parser_new = subparsers.add_parser("new", help="create a new filesystem")
     parser_new.add_argument(
@@ -45,7 +45,7 @@ def get_parser() -> ArgumentParser:
     )
     parser_add.add_argument("input", help="path to file for partition")
     parser_add.add_argument("minor", type=int, help="partition minor")
-    parser_add.add_argument("--type", type=int, help="partition type")
+    parser_add.add_argument("--type", "-t", type=int, help="partition type")
     parser_boot_registry = subparsers.add_parser(
         "boot-registry", help="manage boot registry of filesystem"
     )
@@ -57,7 +57,7 @@ def get_parser() -> ArgumentParser:
     )
     parser_boot_registry_get.add_argument("--key", help="key to get")
     parser_boot_registry_get.add_argument(
-        "--json", action="store_true", help="format result as JSON"
+        "--json", "-j", action="store_true", help="format result as JSON"
     )
     parser_boot_registry_set = parser_boot_registry_subparsers.add_parser(
         "set", help="set key to value in boot registry"
@@ -70,6 +70,9 @@ def get_parser() -> ArgumentParser:
     parser_rebuild.add_argument("output", help="path to write rebuilt filesystem")
     parser_extract = subparsers.add_parser(
         "extract", help="dump all filesystem content"
+    )
+    parser_extract.add_argument(
+        "--partitions", "-p", help="list of partitions to extract, e.g. 1,2,250-255"
     )
     parser_extract.add_argument(
         "directory", help="destination directory for extraction"
@@ -123,7 +126,20 @@ def main() -> None:
         case "rebuild":
             filesystem.rebuild(args.output)
         case "extract":
-            filesystem.extract_to(args.directory, lxos_config)
+            partition_minors = []
+            if args.partitions:
+                for partition in args.partitions.split(","):
+                    partition = partition.strip()
+                    if "-" in partition:
+                        start, end = map(int, partition.split("-"))
+                        partition_minors.extend(range(start, end + 1))
+                    else:
+                        partition_minors.append(int(partition))
+            filesystem.extract_to(
+                args.directory,
+                partition_minors=partition_minors,
+                lxos_config=lxos_config,
+            )
         case "convert":
             Disk.from_filesystem(args.output, filesystem, lxos_config)
         case "info":

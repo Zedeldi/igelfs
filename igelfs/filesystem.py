@@ -362,13 +362,18 @@ class Filesystem:
         return None
 
     def extract_to(
-        self, path: str | Path, lxos_config: LXOSParser | None = None
+        self,
+        path: str | Path,
+        partition_minors: Iterable[int] | None = None,
+        lxos_config: LXOSParser | None = None,
     ) -> None:
         """Extract all partitions and extents to path."""
         path = Path(path).resolve()
         if not path.exists():
             path.mkdir(exist_ok=True)
         for partition_minor in self.partition_minors_by_directory:
+            if partition_minors and partition_minor not in partition_minors:
+                continue
             sections = self.find_sections_by_directory(partition_minor)
             partition = sections[0].partition
             name = f"{partition_minor}"
