@@ -1,5 +1,6 @@
 """Module to assist converting IGEL Filesystem to other formats."""
 
+import os
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -17,7 +18,7 @@ from igelfs.utils import run_process
 class Disk:
     """Class to handle Filesystem as a standard disk with a partition table."""
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | os.PathLike) -> None:
         """Initialize disk instance."""
         self.path = Path(path).resolve()
 
@@ -75,7 +76,7 @@ class Disk:
     @classmethod
     def from_filesystem(
         cls: type["Disk"],
-        path: str | Path,
+        path: str | os.PathLike,
         filesystem: Filesystem,
         lxos_config: LXOSParser | None = None,
     ) -> "Disk":
@@ -89,7 +90,7 @@ class Disk:
 
 
 @contextmanager
-def loop_device(path: str | Path) -> Iterator[str]:
+def loop_device(path: str | os.PathLike) -> Iterator[str]:
     """Context manager to attach path as loop device, then detach on closing."""
     loop_device = losetup_attach(path)
     try:
@@ -98,17 +99,17 @@ def loop_device(path: str | Path) -> Iterator[str]:
         losetup_detach(loop_device)
 
 
-def losetup_attach(path: str | Path) -> str:
+def losetup_attach(path: str | os.PathLike) -> str:
     """Attach specified path as loop device, returning device path."""
     return run_process(["losetup", "--partscan", "--find", "--show", path])
 
 
-def losetup_detach(path: str | Path) -> None:
+def losetup_detach(path: str | os.PathLike) -> None:
     """Detach specified loop device."""
     run_process(["losetup", "--detach", path])
 
 
-def get_partitions(path: str | Path) -> tuple[str]:
+def get_partitions(path: str | os.PathLike) -> tuple[str]:
     """Return tuple of partitions for path to device."""
     return tuple(
         partition

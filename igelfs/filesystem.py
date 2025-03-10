@@ -38,7 +38,7 @@ from igelfs.utils import get_section_of, get_start_of_section
 class Filesystem:
     """IGEL filesystem class to handle properties and methods."""
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | os.PathLike) -> None:
         """Initialise instance."""
         self.path = Path(path).resolve()
 
@@ -123,7 +123,9 @@ class Filesystem:
         return Directory.from_bytes(data)
 
     @classmethod
-    def new(cls: type["Filesystem"], path: str | Path, size: int) -> "Filesystem":
+    def new(
+        cls: type["Filesystem"], path: str | os.PathLike, size: int
+    ) -> "Filesystem":
         """Create new IGEL filesystem at path of size in sections and return instance."""
         boot_registry = BootRegistryHeader.new()
         directory = Directory.new()
@@ -279,14 +281,14 @@ class Filesystem:
 
     @classmethod
     def create_partition_from_file(
-        cls: type["Filesystem"], path: str | Path, *args, **kwargs
+        cls: type["Filesystem"], path: str | os.PathLike, *args, **kwargs
     ) -> DataModelCollection[Section]:
         """Create partition from file and return collection of sections."""
         with open(path, "rb") as fd:
             data = fd.read()
         return cls.create_partition_from_bytes(data, *args, **kwargs)
 
-    def rebuild(self, path: str | Path) -> "Filesystem":
+    def rebuild(self, path: str | os.PathLike) -> "Filesystem":
         """Rebuild filesystem to new image at path and return new instance."""
         filesystem = self.new(path, self.section_count - 1)
         filesystem.write_boot_registry(self.boot_registry)
@@ -363,7 +365,7 @@ class Filesystem:
 
     def extract_to(
         self,
-        path: str | Path,
+        path: str | os.PathLike,
         partition_minors: Iterable[int] | None = None,
         lxos_config: LXOSParser | None = None,
     ) -> None:

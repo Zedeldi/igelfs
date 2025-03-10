@@ -1,5 +1,6 @@
 """Module to assist handling LXOS firmware update files."""
 
+import os
 import configparser
 from collections import OrderedDict
 from pathlib import Path
@@ -22,7 +23,7 @@ class MultiDict(OrderedDict):
 class LXOSParser(configparser.ConfigParser):
     """ConfigParser subclass for LXOS configuration files."""
 
-    def __init__(self, path: str | Path | None = None, *args, **kwargs) -> None:
+    def __init__(self, path: str | os.PathLike | None = None, *args, **kwargs) -> None:
         """Initialise instance of configuration parser."""
         super().__init__(
             *args,

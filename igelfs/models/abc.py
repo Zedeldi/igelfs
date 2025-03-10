@@ -1,5 +1,6 @@
 """Abstract base classes to provide an interface for data models."""
 
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ class BaseBytesModel(ABC):
         """Return bytes of all data."""
         ...
 
-    def write(self, path: str | Path) -> Path:
+    def write(self, path: str | os.PathLike) -> Path:
         """Write data of model to specified path and return Path object."""
         path = Path(path).absolute()
         with open(path, "wb") as fd:
