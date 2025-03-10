@@ -1,8 +1,9 @@
 """Mixin classes to extend functionality for various data models."""
 
 import zlib
+from collections.abc import Iterator
 from dataclasses import Field, asdict, dataclass, fields
-from typing import Any, ClassVar, Iterator, Protocol
+from typing import Any, ClassVar, Protocol
 
 
 class Dataclass(Protocol):

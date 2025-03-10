@@ -4,9 +4,10 @@ import copy
 import itertools
 import math
 import os
+from collections.abc import Iterable, Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from igelfs.constants import (
     DIR_OFFSET,

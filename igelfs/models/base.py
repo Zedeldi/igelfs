@@ -1,9 +1,9 @@
 """Concrete base classes for various data models."""
 
 import io
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import Field, dataclass
-from typing import Any, Iterator, get_args, get_origin
+from typing import Any, get_args, get_origin
 
 from igelfs.models.abc import BaseBytesModel
 from igelfs.models.collections import DataModelCollection

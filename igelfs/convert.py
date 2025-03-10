@@ -1,10 +1,10 @@
 """Module to assist converting IGEL Filesystem to other formats."""
 
 import re
+from collections.abc import Iterator
 from contextlib import contextmanager
 from glob import glob
 from pathlib import Path
-from typing import Iterator
 
 import parted
 
