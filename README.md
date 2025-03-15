@@ -219,7 +219,71 @@ This extract from a [Red Hat article](https://access.redhat.com/articles/5991201
 >   shim uses the embedded certificate to verify the signature of the GRUB 2 boot loader.
 >   shim also provides a protocol that GRUB 2 uses to verify the kernel signature.
 
+### Encrypted Filesystem
+
+Partition minor 255, along with a few others, are encrypted by default
+since IGEL OS v11.
+A custom encrypted partition can also be configured by the system administrator.
+Partition minor 255 contains the `wfs` (presumably "writable filesystem") partition.
+`/wfs` contains the INI configuration files, `group.ini` and `setup.ini`, which
+store the user-configured registry data.
+
+IGEL encrypted filesystems contain two extents - of type `WRITEABLE` and
+`LOGIN` respectively - and are handled internally by various tools:
+
+1.  `/usr/bin/mkigelefs`, `chkigelefs` and `rmigelefs` - extent filesystem
+2.  `/etc/igel/crypt/*` - filesystem and key tools
+3.  `/usr/bin/kml/*` - key management
+
+The tools in `/usr/bin/kml` internally add keys to the kernel's key management
+facility with [`add_key`](https://man.archlinux.org/man/add_key.2.en), which can be
+viewed in `/proc/keys` and managed by [`keyctl`](https://man.archlinux.org/man/keyctl.1.en).
+
+These keys have type `logon`, meaning the keys are not readable from user space.
+
+If these keys are required, it is possible to patch the binary
+`/usr/bin/kml/load_cred` - which is responsible for the key-derivation logic - to
+add these keys with type `user` instead, allowing them to be read.
+This binary can be patched with a reverse engineering tool, such as
+[Ghidra](https://ghidra-sre.org/), or with `sed` as below:
+
+```sh
+# Check string "logon" exists in binary
+strings /usr/bin/kml/load_cred | grep logon
+# Patch the binary
+# If the binary changes significantly, this method may require modification
+sed 's/logon/user\x00/g' /usr/bin/kml/load_cred > load_cred_patched
+# Make the patched binary executable
+chmod +x ./load_cred_patched
+# Run the patched binary
+./load_cred_patched -D
+
+# Read the added keys, see also keyctl print or pipe
+# Common keys: kml:255, kml:248 and kml:default
+keyctl read $(keyctl request user kml:255)
+# Open the encrypted image with aes-xts-plain64 mode
+# Write the output from keyctl (as bytes) into a keyfile
+cryptsetup open \
+    --type=plain \
+    --cipher=aes-xts-plain64 \
+    --key-size=512 \
+    --key-file=<keyfile> \
+    <image> \
+    <name>
+```
+
+Once the keys have been obtained, the encrypted filesystem can be decrypted;
+in older IGEL OS versions, it appears these are often LUKS containers, but in
+later versions, often are encrypted in plain mode, with the cipher `aes-xts-plain64`
+and a key size of 512 bits (halved in XTS mode, i.e. 2x AES-256).
+
 ## Installation
+
+### PyPI
+
+1.  Install project: `pip install igelfs`
+
+### Source
 
 1.  Clone the repository: `git clone https://github.com/Zedeldi/igelfs.git`
 2.  Install project: `pip install .`
