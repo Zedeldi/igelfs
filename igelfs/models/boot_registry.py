@@ -108,12 +108,23 @@ class BootRegistryEntry(BaseDataModel):
 class BaseBootRegistryHeader(BaseDataModel):
     """Base class for boot registry header."""
 
+    STRUCTURE: ClassVar[str]
+
     def __post_init__(self) -> None:
         """Verify identity string on initialisation."""
         if self.ident_legacy != BOOTREG_IDENT:
             raise ValueError(
                 f"Unexpected identity string '{self.ident_legacy}' for boot registry"
             )
+
+    def get_type(self) -> str:
+        """Return type of boot registry as string."""
+        return self.STRUCTURE
+
+    @abstractmethod
+    def get_boot_id(self) -> str:
+        """Return boot ID from boot registry."""
+        ...
 
     @abstractmethod
     def get_entries(self) -> dict[str, str]:
@@ -133,6 +144,8 @@ class BootRegistryHeader(BaseBootRegistryHeader):
 
     The boot registry resides in section #0 of the image.
     """
+
+    STRUCTURE: ClassVar[str] = "structured"
 
     ident_legacy: str = field(  # "IGEL BOOTREGISTRY"
         metadata=DataModelMetadata(size=17, default=BOOTREG_IDENT)
@@ -192,6 +205,10 @@ class BootRegistryHeader(BaseBootRegistryHeader):
             if not entry.key:
                 continue
             yield entry.key
+
+    def get_boot_id(self) -> str:
+        """Return boot ID from boot registry."""
+        return self.boot_id
 
     def get_entries(self) -> dict[str, str]:
         """Return dictionary of all boot registry entries."""
@@ -261,6 +278,8 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
     The boot registry resides in section #0 of the image.
     """
 
+    STRUCTURE: ClassVar[str] = "legacy"
+    BOOT_ID_KEY: ClassVar[str] = "boot_id"
     EOF: ClassVar[str] = "EOF"
 
     ident_legacy: str = field(
@@ -278,6 +297,10 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
         if pad:
             data = data.ljust(cls.get_attribute_size("entry"), b"\x00")
         return data
+
+    def get_boot_id(self) -> str:
+        """Return boot ID from boot registry."""
+        return self.get_entries()[self.BOOT_ID_KEY]
 
     def get_entries(self) -> dict[str, str]:
         """Return dictionary of all boot registry entries."""

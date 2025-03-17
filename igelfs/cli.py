@@ -55,7 +55,7 @@ def get_parser() -> ArgumentParser:
     parser_boot_registry_get = parser_boot_registry_subparsers.add_parser(
         "get", help="get value from boot registry"
     )
-    parser_boot_registry_get.add_argument("--key", help="key to get")
+    parser_boot_registry_get.add_argument("--key", "-k", help="key to get")
     parser_boot_registry_get.add_argument(
         "--json", "-j", action="store_true", help="format result as JSON"
     )
@@ -114,6 +114,8 @@ def main() -> None:
             match args.action:
                 case "get":
                     entries = filesystem.boot_registry.get_entries()
+                    # boot_id is not stored as an entry for structured headers
+                    entries["boot_id"] = filesystem.boot_registry.get_boot_id()
                     value = {args.key: entries.get(args.key)} if args.key else entries
                     if args.json:
                         print(json.dumps(value))

@@ -397,11 +397,8 @@ class Filesystem:
             "size": self.size,
             "section_count": self.section_count,
             "boot_registry": {
-                "type": (
-                    "legacy"
-                    if isinstance(self.boot_registry, BootRegistryHeaderLegacy)
-                    else "structured"
-                ),
+                "type": self.boot_registry.get_type(),
+                "boot_id": self.boot_registry.get_boot_id(),
                 "entries": self.boot_registry.get_entries(),
             },
             "partitions": {
