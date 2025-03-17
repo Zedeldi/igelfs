@@ -235,11 +235,15 @@ IGEL encrypted filesystems contain two extents - of type `WRITEABLE` and
 2.  `/etc/igel/crypt/*` - filesystem and key tools
 3.  `/usr/bin/kml/*` - key management
 
+#### Keyring
+
 The tools in `/usr/bin/kml` internally add keys to the kernel's key management
 facility with [`add_key`](https://man.archlinux.org/man/add_key.2.en), which can be
 viewed in `/proc/keys` and managed by [`keyctl`](https://man.archlinux.org/man/keyctl.1.en).
 
 These keys have type `logon`, meaning the keys are not readable from user space.
+
+#### Binary Patching
 
 If these keys are required, it is possible to patch the binary
 `/usr/bin/kml/load_cred` - which is responsible for the key-derivation logic - to
@@ -261,8 +265,8 @@ chmod +x ./load_cred_patched
 # Read the added keys, see also keyctl print or pipe
 # Common keys: kml:255, kml:248 and kml:default
 keyctl read $(keyctl request user kml:255)
-# Open the encrypted image with aes-xts-plain64 mode
 # Write the output from keyctl (as bytes) into a keyfile
+# Open the encrypted image with aes-xts-plain64 mode
 cryptsetup open \
     --type=plain \
     --cipher=aes-xts-plain64 \
@@ -271,6 +275,45 @@ cryptsetup open \
     <image> \
     <name>
 ```
+
+#### LD_PRELOAD
+
+Alternatively, the syscall `add_key` can be intercepted, by writing a library
+which overrides the `add_key` function, then loading it first using `LD_PRELOAD`:
+
+```c
+// add_key.c
+
+#include <stdio.h>
+#include <string.h>
+
+int add_key(const char *type, const char *description, const char *payload,
+            const int size, const int keyring)
+{
+    printf("add_key() call intercepted\n");
+    printf("Type: %s\n", type);
+    printf("Description: %s\n", description);
+    printf("Payload: ");
+    for (int i = 0; i < strlen(payload); i++) {
+        printf("%02x ", (unsigned char)payload[i]);
+    }
+    printf("\nSize: %d\n", size);
+    printf("Keyring: %d\n\n", keyring);
+
+    return 0;
+}
+```
+
+Compile on host: `gcc -Wall -fPIC -shared add_key.c -o add_key.so`
+
+Run on guest: `LD_PRELOAD=/path/to/add_key.so /usr/bin/kml/load_cred -D`
+
+`add_key` will be loaded by the user-modified library `add_key.so` first,
+which will cause any calls to `add_key` from `load_cred` to simply output the
+passed arguments; the keys will *not* actually be added to the keyring, but
+it will return `0` for success to the caller.
+
+#### Encryption Type
 
 Once the keys have been obtained, the encrypted filesystem can be decrypted;
 in older IGEL OS versions, it appears these are often LUKS containers, but in
