@@ -169,6 +169,22 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
         return (cls.from_bytes(data), data[cls.get_model_size() :])
 
     @classmethod
+    def from_bytes_to_generator(
+        cls: type["BaseDataModel"], data: bytes
+    ) -> Iterator["BaseDataModel"]:
+        """Return generator of data models from bytes."""
+        while data:
+            model, data = cls.from_bytes_with_remaining(data)
+            yield model
+
+    @classmethod
+    def from_bytes_to_collection(
+        cls: type["BaseDataModel"], data: bytes
+    ) -> DataModelCollection["BaseDataModel"]:
+        """Return collection of data models from bytes."""
+        return DataModelCollection(cls.from_bytes_to_generator(data))
+
+    @classmethod
     def _get_default_bytes(cls: type["BaseDataModel"]) -> bytes:
         """Return default bytes for new data model."""
         data = bytes(cls.get_model_size())
