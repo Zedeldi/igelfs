@@ -1,9 +1,8 @@
 """Module to assist handling LXOS firmware update files."""
 
-import os
 import configparser
+import os
 from collections import OrderedDict
-from pathlib import Path
 from typing import Any
 
 
