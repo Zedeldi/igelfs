@@ -320,6 +320,34 @@ in older IGEL OS versions, it appears these are often LUKS containers, but in
 later versions, often are encrypted in plain mode, with the cipher `aes-xts-plain64`
 and a key size of 512 bits (halved in XTS mode, i.e. 2x AES-256).
 
+#### Extent Filesystems
+
+Encrypted filesystems, such as partition minor 255, contain two partition extents
+of types `WRITEABLE` and `LOGIN` respectively.
+Extents of type `WRITEABLE` contain models encrypted using the
+[XChacha20-Poly1305 (AEAD) cryptosystem](https://en.wikipedia.org/wiki/ChaCha20-Poly1305),
+with a key derived from the `boot_id`.
+
+The key can be found using the method described in [LD_PRELOAD](#LD_PRELOAD),
+overriding `crypto_aead_xchacha20poly1305_ietf_decrypt` instead of `add_key`.
+This will reveal the ciphertext, authenticated data, cryptographic nonce and key.
+
+The authenticated data and nonce are stored in the header of the extent filesystem.
+The header is 48 bytes, with a data section of 1048528 bytes; the actual payload
+size is also specified in the header.
+The decrypted data is an LZF-compressed tar archive.
+
+Install the additional dependencies and use `igelfs.models.efs.ExtentFilesystem`
+to handle these extents, for example:
+
+```py
+models = ExtentFilesystem.from_bytes_to_collection(extent)
+for model in models:
+    data = model.decrypt(key)  # Decrypt payload with key
+    decompressed = model.decompress(data)  # Decompress LZF data
+    model.extract(decompressed, path)  # Extract tar archive to path
+```
+
 ## Installation
 
 ### PyPI
