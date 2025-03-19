@@ -7,7 +7,7 @@ import os
 from collections.abc import Iterable, Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, overload
 
 from igelfs.constants import (
     DIR_OFFSET,
@@ -41,6 +41,16 @@ class Filesystem:
     def __init__(self, path: str | os.PathLike) -> None:
         """Initialise instance."""
         self.path = Path(path).resolve()
+
+    @overload
+    def __getitem__(self, index: int) -> Section:
+        """Stub getitem method for indexes."""
+        ...
+
+    @overload
+    def __getitem__(self, index: slice) -> DataModelCollection[Section]:
+        """Stub getitem method for slices."""
+        ...
 
     def __getitem__(self, index: int | slice) -> Section | DataModelCollection[Section]:
         """Implement getitem method."""
@@ -85,7 +95,7 @@ class Filesystem:
                 continue
 
     @cached_property
-    def valid_sections(self) -> tuple[int]:
+    def valid_sections(self) -> tuple[int, ...]:
         """Return tuple of valid section indices and cache result."""
         return tuple(self.get_valid_sections())
 
@@ -273,10 +283,10 @@ class Filesystem:
             partition.to_bytes() + data,
             pad=True,
         )
-        sections = [
+        sections = DataModelCollection(
             Section.from_bytes(SectionHeader.new().to_bytes() + section)
             for section in payload
-        ]
+        )
         return sections
 
     @classmethod
@@ -392,7 +402,7 @@ class Filesystem:
 
     def get_info(self, lxos_config: LXOSParser | None = None) -> dict[str, Any]:
         """Return information about filesystem."""
-        info = {
+        info: dict[str, Any] = {
             "path": self.path.as_posix(),
             "size": self.size,
             "section_count": self.section_count,

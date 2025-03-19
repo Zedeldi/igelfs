@@ -86,7 +86,9 @@ class Section(BaseDataModel, CRCMixin):
         except ValueError:
             self.partition = None
         else:  # Partition extents
-            partition_extents = DataModelCollection()
+            partition_extents: DataModelCollection[PartitionExtent] = (
+                DataModelCollection()
+            )
             for _ in range(partition_header.n_extents):
                 extent, self.data = PartitionExtent.from_bytes_with_remaining(self.data)
                 partition_extents.append(extent)
@@ -100,7 +102,7 @@ class Section(BaseDataModel, CRCMixin):
         except (UnicodeDecodeError, ValueError):
             self.hash = None
         else:  # Hash excludes
-            hash_excludes = DataModelCollection()
+            hash_excludes: DataModelCollection[HashExclude] = DataModelCollection()
             for _ in range(hash_header.count_excludes):
                 hash_exclude, self.data = HashExclude.from_bytes_with_remaining(
                     self.data
@@ -270,8 +272,8 @@ class Section(BaseDataModel, CRCMixin):
         if zero:
             for section in sections:
                 section.zero()
-        for index, section in enumerate(data):
-            sections[index].data = section
+        for index, section_bytes in enumerate(data):
+            sections[index].data = section_bytes
             sections[index].update_crc()
         # Recreate section instance to re-add partition and hash attributes
         sections[0] = Section.from_bytes(sections[0].to_bytes())
@@ -283,8 +285,8 @@ class Section(BaseDataModel, CRCMixin):
     ) -> bytes:
         """Return bytes for all sections, excluding headers."""
         data = b"".join(section.data for section in sections)
-        if not include_extents:
-            data = data[sections[0].partition.get_extents_length() :]
+        if not include_extents and (partition := sections[0].partition):
+            data = data[partition.get_extents_length() :]
         return data
 
     @classmethod
@@ -310,7 +312,7 @@ class Section(BaseDataModel, CRCMixin):
         partition = sections[0].partition
         hash_ = sections[0].hash
         payload = cls.get_payload_of(sections)
-        info = {
+        info: dict[str, Any] = {
             "section_count": len(sections),
             "size": sections.get_actual_size(),
             "payload": {

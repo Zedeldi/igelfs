@@ -4,6 +4,7 @@ import json
 import sys
 from argparse import ArgumentParser, Namespace
 from pprint import pprint
+from typing import Any
 
 from igelfs.filesystem import Filesystem
 from igelfs.lxos import LXOSParser
@@ -128,7 +129,7 @@ def main() -> None:
         case "rebuild":
             filesystem.rebuild(args.output)
         case "extract":
-            partition_minors = []
+            partition_minors: list[int] = []
             if args.partitions:
                 for partition in args.partitions.split(","):
                     partition = partition.strip()
@@ -145,6 +146,7 @@ def main() -> None:
         case "convert":
             Disk.from_filesystem(args.output, filesystem, lxos_config)
         case "info":
+            info: Any
             if args.section_count:
                 if args.json:
                     info = {"section_count": filesystem.section_count}

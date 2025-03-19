@@ -31,12 +31,12 @@ class LXOSParser(configparser.ConfigParser):
             delimiters=kwargs.pop("delimiters", ("=",)),
             strict=kwargs.pop("strict", False),
             **kwargs,
-        )
+        )  # type: ignore[call-overload]
         if path:
             self.read(path)
 
     @property
-    def partitions(self) -> tuple[str]:
+    def partitions(self) -> tuple[str, ...]:
         """Return tuple of keys for partitions."""
         return tuple(key for key in self if key.startswith("PART"))
 
@@ -45,7 +45,7 @@ class LXOSParser(configparser.ConfigParser):
         value = super().get(*args, **kwargs)
         return value.strip('"')
 
-    def find_partition_by_values(self, values: dict[str, str]) -> str:
+    def find_partition_by_values(self, values: dict[str, str]) -> str | None:
         """Search for partition with matching values."""
         for partition in self.partitions:
             for key, value in values.items():
@@ -53,6 +53,7 @@ class LXOSParser(configparser.ConfigParser):
                     break
             else:
                 return partition
+        return None
 
     def find_partition_minor_by_name(self, name: str) -> int | None:
         """Return partition minor by specified name."""

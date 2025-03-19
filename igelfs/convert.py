@@ -109,7 +109,7 @@ def losetup_detach(path: str | os.PathLike) -> None:
     run_process(["losetup", "--detach", path])
 
 
-def get_partitions(path: str | os.PathLike) -> tuple[str]:
+def get_partitions(path: str | os.PathLike) -> tuple[str, ...]:
     """Return tuple of partitions for path to device."""
     return tuple(
         partition

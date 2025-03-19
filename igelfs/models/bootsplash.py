@@ -50,7 +50,7 @@ class BootsplashExtent(BaseDataGroup):
     def from_bytes(cls: type["BootsplashExtent"], data: bytes) -> "BootsplashExtent":
         """Return bootsplash extent model from bytes."""
         header, data = BootsplashHeader.from_bytes_with_remaining(data)
-        splashes = DataModelCollection()
+        splashes: DataModelCollection[Bootsplash] = DataModelCollection()
         for _ in range(header.num_splashs):
             splash, data = Bootsplash.from_bytes_with_remaining(data)
             splashes.append(splash)

@@ -6,13 +6,21 @@ from dataclasses import Field, asdict, dataclass, fields
 from typing import Any, ClassVar, Protocol
 
 
+class BytesModelProtocol(Protocol):
+    """Protocol to type for a base bytes model."""
+
+    def to_bytes(self) -> bytes:
+        """Stub method implemented in subclass."""
+        ...
+
+
 class Dataclass(Protocol):
     """Protocol to type for a dataclass."""
 
     __dataclass_fields__: ClassVar[dict[str, Any]]
 
 
-class CRCMixin:
+class CRCMixin(BytesModelProtocol):
     """Provide methods to handle CRC checking."""
 
     CRC_OFFSET: ClassVar[int]

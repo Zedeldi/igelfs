@@ -5,7 +5,7 @@ import io
 from igelfs.models.abc import BaseBytesModel
 
 
-class DataModelCollection(BaseBytesModel, list):
+class DataModelCollection[T: BaseBytesModel](BaseBytesModel, list[T]):
     """List subclass to provide additional helper methods."""
 
     def to_bytes(self) -> bytes:

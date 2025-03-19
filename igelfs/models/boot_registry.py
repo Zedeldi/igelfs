@@ -56,7 +56,10 @@ class BootRegistryEntry(BaseDataModel):
         Tuple consists of next block index, next block present, key length
         as integers.
         """
-        return tuple(map(partial(int, base=2), self._flag_bits))
+        next_block_index, next_block_present, key_length = map(
+            partial(int, base=2), self._flag_bits
+        )
+        return (next_block_index, next_block_present, key_length)
 
     @classmethod
     def get_flag_from_values(
@@ -66,10 +69,12 @@ class BootRegistryEntry(BaseDataModel):
         key_length: int,
     ) -> int:
         """Return flag integer for specified values."""
-        next_block_index = bin(next_block_index).removeprefix("0b").zfill(9)
-        next_block_present = int(next_block_present)
-        key_length = bin(key_length).removeprefix("0b").zfill(6)
-        return int(f"{next_block_index}{next_block_present}{key_length}", 2)
+        next_block_index_bits = bin(next_block_index).removeprefix("0b").zfill(9)
+        next_block_present_bit = int(next_block_present)
+        key_length_bits = bin(key_length).removeprefix("0b").zfill(6)
+        return int(
+            f"{next_block_index_bits}{next_block_present_bit}{key_length_bits}", 2
+        )
 
     @property
     def next_block_index(self) -> int:
@@ -110,6 +115,10 @@ class BaseBootRegistryHeader(BaseDataModel):
 
     STRUCTURE: ClassVar[str]
 
+    ident_legacy: str = field(  # "IGEL BOOTREGISTRY"
+        metadata=DataModelMetadata(size=17, default=BOOTREG_IDENT)
+    )
+
     def __post_init__(self) -> None:
         """Verify identity string on initialisation."""
         if self.ident_legacy != BOOTREG_IDENT:
@@ -147,9 +156,6 @@ class BootRegistryHeader(BaseBootRegistryHeader):
 
     STRUCTURE: ClassVar[str] = "structured"
 
-    ident_legacy: str = field(  # "IGEL BOOTREGISTRY"
-        metadata=DataModelMetadata(size=17, default=BOOTREG_IDENT)
-    )
     magic: str = field(  # BOOTREG_MAGIC
         metadata=DataModelMetadata(size=4, default=BOOTREG_MAGIC)
     )
@@ -186,7 +192,7 @@ class BootRegistryHeader(BaseBootRegistryHeader):
 
     def _get_entries_for_key(self, key: str) -> DataModelCollection[BootRegistryEntry]:
         """Return collection of all entries for key."""
-        entries = DataModelCollection()
+        entries: DataModelCollection[BootRegistryEntry] = DataModelCollection()
         for entry in self.entry:
             if not entry.value:
                 continue
@@ -282,9 +288,6 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
     BOOT_ID_KEY: ClassVar[str] = "boot_id"
     EOF: ClassVar[str] = "EOF"
 
-    ident_legacy: str = field(
-        metadata=DataModelMetadata(size=17, default=BOOTREG_IDENT)
-    )
     entry: bytes = field(metadata=DataModelMetadata(size=IGEL_BOOTREG_SIZE - 17))
 
     @classmethod
@@ -292,8 +295,8 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
         cls: type["BootRegistryHeaderLegacy"], entries: dict[str, str], pad: bool = True
     ) -> bytes:
         """Convert dictionary of entries to bytes."""
-        data = "\n".join(f"{key}={value}" for key, value in entries.items())
-        data = f"\n{data}\n{cls.EOF}\n".encode()
+        content = "\n".join(f"{key}={value}" for key, value in entries.items())
+        data = f"\n{content}\n{cls.EOF}\n".encode()
         if pad:
             data = data.ljust(cls.get_attribute_size("entry"), b"\x00")
         return data

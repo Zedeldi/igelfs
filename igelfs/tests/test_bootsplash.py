@@ -7,6 +7,7 @@ from igelfs.models import (
     BootsplashExtent,
     BootsplashHeader,
     DataModelCollection,
+    Partition,
     Section,
 )
 
@@ -19,12 +20,14 @@ def test_bootsplash_magic(bspl: DataModelCollection[Section]) -> None:
 
 def test_bspl_splash_extent(bspl: DataModelCollection[Section]) -> None:
     """Test getting splash extent from bootsplash sections."""
-    for extent in bspl[0].partition.extents:
+    partition = bspl[0].partition
+    assert isinstance(partition, Partition)
+    for extent in partition.extents:
         # UDC and OSC ISOs store splash extents as type KERNEL
         if extent.get_type() in (ExtentType.SPLASH, ExtentType.KERNEL):
             break
     else:
         pytest.skip("Bootsplash partition does not have a splash extent")
-    splash = Section.get_extent_of(bspl, extent)
-    extent = BootsplashExtent.from_bytes(splash)
-    assert len(extent.get_images()) == len(extent.splashes) == extent.header.num_splashs
+    data = Section.get_extent_of(bspl, extent)
+    splash = BootsplashExtent.from_bytes(data)
+    assert len(splash.get_images()) == len(splash.splashes) == splash.header.num_splashs

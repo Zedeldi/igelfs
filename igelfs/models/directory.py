@@ -149,10 +149,12 @@ class Directory(BaseDataModel, CRCMixin):
 
     def get_first_sections(self) -> dict[int, int]:
         """Return mapping of partition minors to first sections."""
-        info = {
-            minor: self.find_fragment_by_partition_minor(minor).first_section
-            for minor in sorted(self.partition_minors)
-        }
+        info = {}
+        for minor in sorted(self.partition_minors):
+            fragment = self.find_fragment_by_partition_minor(minor)
+            if not fragment:
+                continue
+            info[minor] = fragment.first_section
         return info
 
     def _get_empty_partition(self) -> tuple[PartitionDescriptor, int]:

@@ -54,7 +54,7 @@ class HashExclude(BaseDataModel):
         """Return list of excluded indices for hash."""
         if self.repeat == 0:
             return list(range(self.start, self.start + self.size))
-        indices = []
+        indices: list[int] = []
         for offset in range(0, self.end, self.repeat):
             start = self.start + offset
             indices.extend(range(start, start + self.size))

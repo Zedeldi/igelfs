@@ -37,7 +37,7 @@ class DataModelMetadata(Mapping, DataclassMixin):
 
 
 @dataclass
-class BaseDataModel(BaseBytesModel, DataclassMixin):
+class BaseDataModel[T: BaseDataModel](BaseBytesModel, DataclassMixin):
     """Concrete base class for data model."""
 
     def __len__(self) -> int:
@@ -101,7 +101,7 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
         """Verify data model integrity."""
         result = self.get_actual_size() == self.get_model_size()
         try:
-            result = result and super().verify()
+            result = result and super().verify()  # type: ignore[misc]
         except AttributeError:
             pass
         return result
@@ -135,6 +135,8 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
     @staticmethod
     def from_field(data: bytes, field: Field) -> Any:
         """Return instance of field type from data."""
+        if isinstance(field.type, str):
+            raise TypeError(f"Type of field '{field.type}' must be a class")
         if get_origin(field.type) == DataModelCollection:
             inner = get_args(field.type)[0]
             return DataModelCollection(
@@ -154,7 +156,7 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
             return field.type(data)
 
     @classmethod
-    def from_bytes(cls: type["BaseDataModel"], data: bytes) -> "BaseDataModel":
+    def from_bytes(cls: type[T], data: bytes) -> T:
         """Return data model instance from bytes."""
         model = cls.from_bytes_to_dict(data)
         for field in cls.get_fields(init_only=True):
@@ -162,27 +164,27 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
         return cls(**model)
 
     @classmethod
-    def from_bytes_with_remaining(
-        cls: type["BaseDataModel"], data: bytes
-    ) -> tuple["BaseDataModel", bytes]:
+    def from_bytes_with_remaining(cls: type[T], data: bytes) -> tuple[T, bytes]:
         """Return data model instance and remaining data from bytes."""
         return (cls.from_bytes(data), data[cls.get_model_size() :])
 
     @classmethod
     def from_bytes_to_generator(
-        cls: type["BaseDataModel"], data: bytes
-    ) -> Iterator["BaseDataModel"]:
+        cls: type[T], data: bytes, limit: int | None = None
+    ) -> Iterator[T]:
         """Return generator of data models from bytes."""
-        while data:
+        n = 0
+        while data and (not limit or n < limit):
             model, data = cls.from_bytes_with_remaining(data)
+            n += 1
             yield model
 
     @classmethod
     def from_bytes_to_collection(
-        cls: type["BaseDataModel"], data: bytes
-    ) -> DataModelCollection["BaseDataModel"]:
+        cls: type[T], data: bytes, limit: int | None = None
+    ) -> DataModelCollection[T]:
         """Return collection of data models from bytes."""
-        return DataModelCollection(cls.from_bytes_to_generator(data))
+        return DataModelCollection(cls.from_bytes_to_generator(data, limit=limit))
 
     @classmethod
     def _get_default_bytes(cls: type["BaseDataModel"]) -> bytes:
@@ -203,7 +205,7 @@ class BaseDataModel(BaseBytesModel, DataclassMixin):
         return data
 
     @classmethod
-    def new(cls: type["BaseDataModel"], **kwargs) -> "BaseDataModel":
+    def new(cls: type[T], **kwargs) -> T:
         """Return new data model instance with default data."""
         model = cls.from_bytes(cls._get_default_bytes())
         for name, value in kwargs.items():
