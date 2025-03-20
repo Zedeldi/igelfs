@@ -237,7 +237,7 @@ IGEL encrypted filesystems contain two extents - of type `WRITEABLE` and
 
 #### Keyring
 
-The tools in `/usr/bin/kml` internally add keys to the kernel's key management
+The tools in `/usr/bin/kml/` internally add keys to the kernel's key management
 facility with [`add_key`](https://man.archlinux.org/man/add_key.2.en), which can be
 viewed in `/proc/keys` and managed by [`keyctl`](https://man.archlinux.org/man/keyctl.1.en).
 
@@ -326,9 +326,9 @@ Encrypted filesystems, such as partition minor 255, contain two partition extent
 of types `WRITEABLE` and `LOGIN` respectively.
 Extents of type `WRITEABLE` contain models encrypted using the
 [XChacha20-Poly1305 (AEAD) cryptosystem](https://en.wikipedia.org/wiki/ChaCha20-Poly1305),
-with a key derived from the `boot_id`.
+with a key derived from the `boot_id` (see `ExtentFilesystem.derive_key`).
 
-The key can be found using the method described in [LD_PRELOAD](#LD_PRELOAD),
+The key can also be found using the method described in [LD_PRELOAD](#LD_PRELOAD),
 overriding `crypto_aead_xchacha20poly1305_ietf_decrypt` instead of `add_key`.
 This will reveal the ciphertext, authenticated data, cryptographic nonce and key.
 
@@ -341,6 +341,7 @@ Install the additional dependencies and use `igelfs.models.efs.ExtentFilesystem`
 to handle these extents, for example:
 
 ```py
+key = ExtentFilesystem.derive_key(boot_id)  # Derive key from boot ID
 models = ExtentFilesystem.from_bytes_to_collection(extent)
 for model in models:
     data = model.decrypt(key)  # Decrypt payload with key
@@ -366,6 +367,8 @@ for model in models:
 -   [pillow](https://pypi.org/project/pillow/) - bootsplash images
 -   [python-magic](https://pypi.org/project/python-magic/) - payload identification
 -   [pyparted](https://pypi.org/project/pyparted/) - disk conversion (optional)
+-   [PyNaCl](https://pypi.org/project/PyNaCl/) - encryption, bindings to [libsodium](https://github.com/jedisct1/libsodium) (optional)
+-   [python-lzf](https://pypi.org/project/python-lzf/) - compression, bindings to liblzf (optional)
 -   [pytest](https://pypi.org/project/pytest/) - testing, see [below](#testing)
 
 ## Usage
