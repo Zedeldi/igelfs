@@ -16,6 +16,8 @@ from igelfs.models.base import BaseDataModel, DataModelMetadata
 
 STATIC_KEY_1 = b"\x6f\x86\x89\xe7\x8a\xc0Mu\xf1P\xf1;\xf1\xf2\xf7\x86\x93\xf2\x99\xc5\x11hk9\xad\xc2Q\xe6\\V\xf8K"
 STATIC_KEY_2 = b"\x655\xd4\x19\xd6,9\x80\xe9\xe9\x87Lk\x88#\x00\x94)\xe4\xefH\xfb\xd2\xdfo\xb3aA\xbek\xd4\xf7o"
+BASE64_KEY_1 = "bDF0Ib7m+zCS9Fu0Z9hdJ5MnfPsbu8y+7cH75TFHf+Q="
+BASE64_KEY_2 = "3aiFZE00oVQXIr3C/rttDo3Q+XsG4grpPGIYVgCpzNA="
 
 
 @dataclass
@@ -78,7 +80,9 @@ class ExtentFilesystem(BaseDataModel):
                 tar.extractall(path, *args, **kwargs)
 
     @staticmethod
-    def derive_key(boot_id: str, key_size: int = Aead.KEY_SIZE) -> bytes:
+    def derive_key(
+        boot_id: str, base64_key: str | None = None, key_size: int = Aead.KEY_SIZE
+    ) -> bytes:
         """Return key derived from boot_id for extent filesystem."""
         # initial values are sha256 hash of boot_id
         boot_id_hash = hashlib.sha256(boot_id.encode()).digest()
@@ -90,7 +94,15 @@ class ExtentFilesystem(BaseDataModel):
         # xor boot_id_hash with static key
         result = bytes([boot_id_hash[idx] ^ key[idx] for idx in range(key_size)])
         # sha256 result maximum of 41 times
-        for _ in range((sum(result) & 0x1F) + 0xA):
+        iterations = (sum(result) & 0x1F) + 0xA
+        for _ in range(iterations):
             result = hashlib.sha256(result).digest()
+
+        if base64_key:
+            bin_key = base64.b64decode(base64_key)
+            for _ in range(iterations + 1):
+                bin_key = hashlib.sha256(bin_key).digest()
+            result = bytes([result[idx] ^ bin_key[idx] for idx in range(key_size)])
+
         # return base64 encoded result
         return base64.b64encode(result)

@@ -349,6 +349,12 @@ for model in models:
     model.extract(decompressed, path)  # Extract tar archive to path
 ```
 
+The tar archive contains a JSON configuration file, called `kmlconfig.json`, which
+stores the required information to open the encrypted volumes.
+
+The required JSON keys are: `system`, `system.salt`, `slots` and `keys`,
+optionally with a `tpm` section.
+
 ## Installation
 
 ### PyPI
