@@ -352,8 +352,26 @@ for model in models:
 The tar archive contains a JSON configuration file, called `kmlconfig.json`, which
 stores the required information to open the encrypted volumes.
 
-The required JSON keys are: `system`, `system.salt`, `slots` and `keys`,
-optionally with a `tpm` section.
+The required JSON sections are: `system`, `slots` and `keys`, and optionally `tpm`.
+
+#### Encryption Keys
+
+Once the writable extent has been decrypted and `kmlconfig.json` has been extracted,
+it is possible to derive the master key for decrypting individual filesystem keys.
+
+The master key is derived in the following way (see `ExtentFilesystem.get_master_key`):
+
+-   Argon2ID KDF with the following parameters:
+    -   `size`: 32 bytes
+    -   `password`: first 20 bytes of `ExtentFilesystem.derive_key(boot_id)` (base64 decoded, then re-encoded)
+    -   `salt`: from `system.salt`
+    -   `opslimit` and `memlimit`: dependent on `system.level`
+-   `slots[n].pub` (32 bytes) is appended to result = 64 bytes
+-   Result is hashed with SHA-512 (64 bytes)
+-   Digest is used as key to decrypt `slots[n].priv` with AES-XTS, where the
+    initialisation vector is the second half of the key (`[32:]`)
+
+This master key is then used to decrypt each key in the same way.
 
 ## Installation
 
@@ -373,6 +391,7 @@ optionally with a `tpm` section.
 -   [pillow](https://pypi.org/project/pillow/) - bootsplash images
 -   [python-magic](https://pypi.org/project/python-magic/) - payload identification
 -   [pyparted](https://pypi.org/project/pyparted/) - disk conversion (optional)
+-   [cryptography](https://pypi.org/project/cryptography/) - encryption (optional)
 -   [PyNaCl](https://pypi.org/project/PyNaCl/) - encryption, bindings to [libsodium](https://github.com/jedisct1/libsodium) (optional)
 -   [python-lzf](https://pypi.org/project/python-lzf/) - compression, bindings to liblzf (optional)
 -   [pytest](https://pypi.org/project/pytest/) - testing, see [below](#testing)

@@ -23,7 +23,7 @@ requires-python = ">= 3.12"
 
 [project.optional-dependencies]
 convert = ["pyparted"]
-efs = ["PyNaCl", "python-lzf"]
+efs = ["cryptography", "PyNaCl", "python-lzf"]
 tests = ["pytest"]
 
 [project.urls]

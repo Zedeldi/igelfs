@@ -2,6 +2,9 @@
 
 import io
 import subprocess
+import tarfile
+from collections.abc import Generator
+from contextlib import contextmanager
 
 from igelfs.constants import IGF_SECTION_SHIFT, IGF_SECTION_SIZE
 
@@ -50,3 +53,11 @@ def run_process(*args, **kwargs) -> str:
         .stdout.strip()
         .decode()
     )
+
+
+@contextmanager
+def tarfile_from_bytes(data: bytes) -> Generator[tarfile.TarFile]:
+    """Context manager for creating a TarFile from bytes."""
+    with io.BytesIO(data) as file:
+        with tarfile.open(fileobj=file) as tar:
+            yield tar
