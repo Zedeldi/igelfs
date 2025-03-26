@@ -25,8 +25,15 @@ STATIC_KEY_1 = b"\x6f\x86\x89\xe7\x8a\xc0Mu\xf1P\xf1;\xf1\xf2\xf7\x86\x93\xf2\x9
 STATIC_KEY_2 = b"\x655\xd4\x19\xd6,9\x80\xe9\xe9\x87Lk\x88#\x00\x94)\xe4\xefH\xfb\xd2\xdfo\xb3aA\xbek\xd4\xf7o"
 BASE64_KEY_1 = "bDF0Ib7m+zCS9Fu0Z9hdJ5MnfPsbu8y+7cH75TFHf+Q="
 BASE64_KEY_2 = "3aiFZE00oVQXIr3C/rttDo3Q+XsG4grpPGIYVgCpzNA="
-MEMLIMIT_BYTES = b"\x00\x12z\x00\x00\x00\x00\x00\x00\x00\t=\x00\x00\x00\x00\x00@B\x0f\x00\x00\x00\x00\x00\x80\x84\x1e\x00\x00\x00\x00"
 DEFAULT_PASSWORD = b"default"
+KDF_CONFIG = [  # index represents level
+    (3, 128000000),  # default values
+    (7, 8000000),  # level = 1
+    (2, 1024000000),
+    (3, 256000000),
+    (3, 512000000),
+    (4, 128000000),
+]
 
 
 @dataclass
@@ -139,11 +146,7 @@ class ExtentFilesystem(BaseDataModel):
 
     @classmethod
     def get_master_key(
-        cls: type["ExtentFilesystem"],
-        config: dict[str, Any],
-        key: bytes,
-        slot: int = 0,
-        opslimit: int = 7,
+        cls: type["ExtentFilesystem"], config: dict[str, Any], key: bytes, slot: int = 0
     ) -> bytes:
         """Return master key for key decryption."""
         password = base64.b64encode(base64.b64decode(key)[:20])
@@ -152,13 +155,10 @@ class ExtentFilesystem(BaseDataModel):
         priv = base64.b64decode(config["slots"][slot]["priv"])
         level = config["system"]["level"]
         # memlimit and opslimit dependent on level
-        memlimit = 0x7A12000
-        if level - 1 <= 3:
-            start_idx = (level - 1) << 3
-            memlimit = int.from_bytes(
-                MEMLIMIT_BYTES[start_idx : start_idx + 8], byteorder="little"
-            )
-
+        try:
+            opslimit, memlimit = KDF_CONFIG[level]
+        except IndexError:
+            opslimit, memlimit = KDF_CONFIG[0]
         derived_key = (
             pwhash.argon2id.kdf(
                 32, password, salt, opslimit=opslimit, memlimit=memlimit
