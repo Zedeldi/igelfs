@@ -7,7 +7,7 @@ name = "igelfs"
 description = "Python implementation of the IGEL filesystem."
 version = "2.7.1"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "GPL-3.0-only"
 authors = [
   {name = "Zack Didcott"}
 ]
