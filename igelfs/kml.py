@@ -8,8 +8,7 @@ from dataclasses import dataclass
 from igelfs.constants import ExtentType
 from igelfs.crypto import CryptoHelper
 from igelfs.filesystem import Filesystem
-from igelfs.models import Section
-from igelfs.models.efs import ExtentFilesystem
+from igelfs.models import ExtentFilesystem, Section
 
 
 class KmlConfig(dict):

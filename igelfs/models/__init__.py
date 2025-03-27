@@ -9,6 +9,7 @@ from igelfs.models.boot_registry import (
 from igelfs.models.bootsplash import Bootsplash, BootsplashExtent, BootsplashHeader
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.directory import Directory, FragmentDescriptor, PartitionDescriptor
+from igelfs.models.efs import ExtentFilesystem
 from igelfs.models.hash import Hash, HashExclude, HashHeader, HashInformation
 from igelfs.models.partition import (
     Partition,
@@ -29,6 +30,7 @@ __all__ = [
     "BootsplashHeader",
     "DataModelCollection",
     "Directory",
+    "ExtentFilesystem",
     "FragmentDescriptor",
     "Hash",
     "HashExclude",
