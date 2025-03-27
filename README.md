@@ -326,7 +326,7 @@ Encrypted filesystems, such as partition minor 255, contain two partition extent
 of types `WRITEABLE` and `LOGIN` respectively.
 Extents of type `WRITEABLE` contain models encrypted using the
 [XChacha20-Poly1305 (AEAD) cryptosystem](https://en.wikipedia.org/wiki/ChaCha20-Poly1305),
-with a key derived from the `boot_id` (see `ExtentFilesystem.derive_key`).
+with a key derived from the `boot_id` (see `CryptoHelper.get_extent_key`).
 
 The key can also be found using the method described in [LD_PRELOAD](#LD_PRELOAD),
 overriding `crypto_aead_xchacha20poly1305_ietf_decrypt` instead of `add_key`.
@@ -341,12 +341,12 @@ Install the additional dependencies and use `igelfs.models.efs.ExtentFilesystem`
 to handle these extents, for example:
 
 ```py
-key = ExtentFilesystem.derive_key(boot_id)  # Derive key from boot ID
+key = CryptoHelper.get_extent_key(boot_id)  # Derive key from boot ID
 models = ExtentFilesystem.from_bytes_to_collection(extent)
 for model in models:
     data = model.decrypt(key)  # Decrypt payload with key
-    decompressed = model.decompress(data)  # Decompress LZF data
-    model.extract(decompressed, path)  # Extract tar archive to path
+    decompressed = ExtentFilesystem.decompress(data)  # Decompress LZF data
+    ExtentFilesystem.extract(decompressed, path)  # Extract tar archive to path
 ```
 
 The tar archive contains a JSON configuration file, called `kmlconfig.json`, which
@@ -359,11 +359,11 @@ The required JSON sections are: `system`, `slots` and `keys`, and optionally `tp
 Once the writable extent has been decrypted and `kmlconfig.json` has been extracted,
 it is possible to derive the master key for decrypting individual filesystem keys.
 
-The master key is derived in the following way (see `ExtentFilesystem.get_master_key`):
+The master key is derived in the following way (see `CryptoHelper.get_master_key`):
 
 -   Argon2ID KDF with the following parameters:
     -   `size`: 32 bytes
-    -   `password`: first 20 bytes of `ExtentFilesystem.derive_key(boot_id)` (base64 decoded, then re-encoded)
+    -   `password`: first 20 bytes of `CryptoHelper.get_extent_key(boot_id)` (base64 decoded, then re-encoded)
     -   `salt`: from `system.salt`
     -   `opslimit` and `memlimit`: dependent on `system.level`
 -   `slots[n].pub` (32 bytes) is appended to result = 64 bytes
@@ -372,6 +372,14 @@ The master key is derived in the following way (see `ExtentFilesystem.get_master
     initialisation vector is the second half of the key (`[32:]`)
 
 This master key is then used to decrypt each key in the same way.
+
+Use `igelfs.kml.Keyring` and `KmlConfig` to manage these keys in an abstract manner:
+
+```py
+keyring  = Keyring.from_filesystem(filesystem)
+keyring.get_keys()
+keyring.get_key(255)
+```
 
 ## Installation
 
