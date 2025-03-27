@@ -83,6 +83,9 @@ class Keyring:
                         data = ExtentFilesystem.decompress(data)
                         data = ExtentFilesystem.extract_file(data, KmlConfig.FILENAME)
                         return KmlConfig.from_bytes(data)
+                    except ImportError as error:
+                        # Required dependencies not installed
+                        raise error from None
                     except Exception:
                         pass
         return None
