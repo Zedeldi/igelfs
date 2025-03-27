@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from igelfs.constants import MAX_EXTENT_NUM, ExtentType, PartitionType
+from igelfs.constants import MAX_EXTENT_NUM, ExtentType, PartitionFlag, PartitionType
 from igelfs.models.base import BaseDataGroup, BaseDataModel, DataModelMetadata
 from igelfs.models.collections import DataModelCollection
 
@@ -57,13 +57,18 @@ class PartitionHeader(BaseDataModel):
                 f"Size '{size}' does not match hdrlen '{self.hdrlen}' for partition header"
             )
 
+    def _get_flag_value(self) -> int:
+        """Return value for flag without remainder."""
+        return sum(PartitionFlag(self.type))
+
+    def get_flag(self) -> PartitionFlag:
+        """Return PartitionFlag from PartitionHeader instance."""
+        return PartitionFlag(self._get_flag_value())
+
     def get_type(self) -> PartitionType:
         """Return PartitionType from PartitionHeader instance."""
-        type_ = int.from_bytes(
-            self.type.to_bytes(self.get_attribute_size("type"), byteorder="big"),
-            byteorder="little",
-        )
-        return PartitionType(type_ & 0xFF)
+        # Type is the remainder when subtracted from flags
+        return PartitionType(self.type - self.get_flag())
 
     def get_name(self) -> str | None:
         """Return name of partition or None."""
