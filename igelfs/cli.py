@@ -12,9 +12,16 @@ from igelfs.lxos import LXOSParser
 try:
     from igelfs.convert import Disk
 except ImportError:
-    CONVERT_AVAILABLE = False
+    _CONVERT_AVAILABLE = False
 else:
-    CONVERT_AVAILABLE = True
+    _CONVERT_AVAILABLE = True
+
+try:
+    from igelfs.kml import Keyring
+except ImportError:
+    _KEYRING_AVAILABLE = False
+else:
+    _KEYRING_AVAILABLE = True
 
 
 def get_parser() -> ArgumentParser:
@@ -22,7 +29,7 @@ def get_parser() -> ArgumentParser:
     parser = ArgumentParser(
         prog="igelfs",
         description="Python implementation of the IGEL filesystem",
-        epilog="Copyright (C) 2024 Zack Didcott",
+        epilog="Copyright (C) 2025 Zack Didcott",
     )
     subparsers = parser.add_subparsers(
         dest="command", help="action to perform", required=True
@@ -65,6 +72,16 @@ def get_parser() -> ArgumentParser:
     )
     parser_boot_registry_set.add_argument("key", help="key to set")
     parser_boot_registry_set.add_argument("value", help="value to set")
+    parser_keys = subparsers.add_parser(
+        "keys", help="manage filesystem encryption keys"
+    )
+    parser_keys.add_argument(
+        "name", help="key name, e.g. 'extent-key', 'master-key', '255'"
+    )
+    parser_keys.add_argument(
+        "--hex", "-H", action="store_true", help="output key as hexadecimal"
+    )
+    parser_keys.add_argument("--output", "-o", help="write key to file")
     parser_rebuild = subparsers.add_parser(
         "rebuild", help="rebuild filesystem to new image"
     )
@@ -90,8 +107,10 @@ def get_parser() -> ArgumentParser:
 
 def check_args(args: Namespace) -> None:
     """Check sanity of parsed arguments."""
-    if args.command == "convert" and not CONVERT_AVAILABLE:
-        print("Filesystem conversion is not available.")
+    if (args.command == "keys" and not _KEYRING_AVAILABLE) or (
+        args.command == "convert" and not _CONVERT_AVAILABLE
+    ):
+        print(f"Command '{args.command}' is not available.")
         sys.exit(1)
 
 
@@ -126,6 +145,19 @@ def main() -> None:
                     boot_registry = filesystem.boot_registry
                     boot_registry.set_entry(args.key, args.value)
                     filesystem.write_boot_registry(boot_registry)
+        case "keys":
+            keyring = Keyring.from_filesystem(filesystem)
+            match args.name:
+                case "extent-key":
+                    key = keyring.extent_key
+                case "master-key":
+                    key = keyring.master_key
+                case name:
+                    key = keyring.get_key(name)
+            if path := args.output:
+                with open(path, "wb") as file:
+                    file.write(key)
+            print(key.hex() if args.hex else key)
         case "rebuild":
             filesystem.rebuild(args.output)
         case "extract":

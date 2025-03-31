@@ -8,19 +8,19 @@ from typing import ClassVar
 
 try:
     import lzf
-
-    _IS_LZF_AVAILABLE = True
 except ImportError:
-    _IS_LZF_AVAILABLE = False
+    _LZF_AVAILABLE = False
+else:
+    _LZF_AVAILABLE = True
 
 from igelfs.constants import EXTENTFS_MAGIC, IGF_EXTENTFS_DATA_LEN
 
 try:
     from igelfs.crypto import CryptoHelper
-
-    _IS_CRYPTO_AVAILABLE = True
 except ImportError:
-    _IS_CRYPTO_AVAILABLE = False
+    _CRYPTO_AVAILABLE = False
+else:
+    _CRYPTO_AVAILABLE = True
 from igelfs.models.base import BaseDataModel, DataModelMetadata
 from igelfs.utils import tarfile_from_bytes
 
@@ -62,7 +62,7 @@ class ExtentFilesystem(BaseDataModel):
 
     def decrypt(self, key: bytes) -> bytes:
         """Decrypt payload with specified key."""
-        if not _IS_CRYPTO_AVAILABLE:
+        if not _CRYPTO_AVAILABLE:
             raise ImportError("Cryptographic functionality is not available")
         return CryptoHelper.aead_xchacha20_poly1305_ietf_decrypt(
             self.payload,
@@ -74,7 +74,7 @@ class ExtentFilesystem(BaseDataModel):
     @classmethod
     def decompress(cls: type["ExtentFilesystem"], data: bytes) -> bytes | None:
         """Return LZF-decompressed data or None if too large."""
-        if not _IS_LZF_AVAILABLE:
+        if not _LZF_AVAILABLE:
             raise ImportError("lzf functionality is not available")
         return lzf.decompress(data, cls.LZF_DECOMPRESS_SIZE)
 
