@@ -1,6 +1,5 @@
 """Functions to handle device operations."""
 
-import abc
 import contextlib
 import os
 import re
@@ -9,40 +8,8 @@ import tempfile
 import uuid
 from collections.abc import Generator
 from glob import glob
-from types import TracebackType
-from typing import Any
 
-from igelfs.utils import run_process
-
-
-class BaseContext(contextlib.AbstractContextManager):
-    """Base class for helper context managers."""
-
-    def __init__(self, *args, **kwargs) -> None:
-        """Initialise instance with passed arguments."""
-        self._args = args
-        self._kwargs = kwargs
-
-    def __enter__(self) -> Any:
-        """Enter runtime context for object."""
-        self._context = self.context(*self._args, **self._kwargs)
-        return self._context.__enter__()
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> bool | None:
-        """Exit runtime context for object."""
-        return self._context.__exit__(exc_type, exc_value, traceback)
-
-    @classmethod
-    @contextlib.contextmanager
-    @abc.abstractmethod
-    def context(cls: type["BaseContext"], *args, **kwargs) -> Generator[Any]:
-        """Abstract class method allowing helper classes to be used as context managers."""
-        ...
+from igelfs.utils import BaseContext, run_process
 
 
 class Cryptsetup(BaseContext):

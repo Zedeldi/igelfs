@@ -1,11 +1,14 @@
 """Collection of functions to assist other modules."""
 
+import abc
+import contextlib
 import io
 import subprocess
 import tarfile
 import tempfile
 from collections.abc import Generator
-from contextlib import contextmanager
+from types import TracebackType
+from typing import Any
 
 from igelfs.constants import IGF_SECTION_SHIFT, IGF_SECTION_SIZE
 
@@ -56,7 +59,7 @@ def run_process(*args, **kwargs) -> str:
     )
 
 
-@contextmanager
+@contextlib.contextmanager
 def tarfile_from_bytes(data: bytes) -> Generator[tarfile.TarFile]:
     """Context manager for creating a TarFile from bytes."""
     with io.BytesIO(data) as file:
@@ -64,10 +67,40 @@ def tarfile_from_bytes(data: bytes) -> Generator[tarfile.TarFile]:
             yield tar
 
 
-@contextmanager
+@contextlib.contextmanager
 def tempfile_from_bytes(data: bytes) -> Generator[str]:
     """Write bytes to temporary file and return path."""
     with tempfile.NamedTemporaryFile(delete_on_close=False) as file:
         file.write(data)
         file.close()
         yield file.name
+
+
+class BaseContext(contextlib.AbstractContextManager):
+    """Base class for helper context managers."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialise instance with passed arguments."""
+        self._args = args
+        self._kwargs = kwargs
+
+    def __enter__(self) -> Any:
+        """Enter runtime context for object."""
+        self._context = self.context(*self._args, **self._kwargs)
+        return self._context.__enter__()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        """Exit runtime context for object."""
+        return self._context.__exit__(exc_type, exc_value, traceback)
+
+    @classmethod
+    @contextlib.contextmanager
+    @abc.abstractmethod
+    def context(cls: type["BaseContext"], *args, **kwargs) -> Generator[Any]:
+        """Abstract class method allowing helper classes to be used as context managers."""
+        ...
