@@ -1,18 +1,14 @@
 """Module to assist converting IGEL Filesystem to other formats."""
 
 import os
-import re
-from collections.abc import Iterator
-from contextlib import contextmanager
-from glob import glob
 from pathlib import Path
 
 import parted
 
+from igelfs.device import Losetup, get_partitions
 from igelfs.filesystem import Filesystem
 from igelfs.lxos import LXOSParser
 from igelfs.models import Section
-from igelfs.utils import run_process
 
 
 class Disk:
@@ -64,7 +60,7 @@ class Disk:
 
     def write(self, filesystem: Filesystem) -> None:
         """Write filesystem data to partitions."""
-        with loop_device(self.path) as device:
+        with Losetup(self.path) as device:
             for partition, partition_minor in zip(
                 get_partitions(device), filesystem.partition_minors_by_directory
             ):
@@ -87,32 +83,3 @@ class Disk:
         disk.partition(filesystem, lxos_config)
         disk.write(filesystem)
         return disk
-
-
-@contextmanager
-def loop_device(path: str | os.PathLike) -> Iterator[str]:
-    """Context manager to attach path as loop device, then detach on closing."""
-    loop_device = losetup_attach(path)
-    try:
-        yield loop_device
-    finally:
-        losetup_detach(loop_device)
-
-
-def losetup_attach(path: str | os.PathLike) -> str:
-    """Attach specified path as loop device, returning device path."""
-    return run_process(["losetup", "--partscan", "--find", "--show", path])
-
-
-def losetup_detach(path: str | os.PathLike) -> None:
-    """Detach specified loop device."""
-    run_process(["losetup", "--detach", path])
-
-
-def get_partitions(path: str | os.PathLike) -> tuple[str, ...]:
-    """Return tuple of partitions for path to device."""
-    return tuple(
-        partition
-        for partition in glob(f"{path}*", recursive=True)
-        if re.search(rf"{path}p?[0-9]+", partition)
-    )
