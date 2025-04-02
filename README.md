@@ -225,8 +225,9 @@ Partition minor 255, along with a few others, are encrypted by default
 since IGEL OS v11.
 A custom encrypted partition can also be configured by the system administrator.
 Partition minor 255 contains the `wfs` (presumably "writable filesystem") partition.
-`/wfs` contains the INI configuration files, `group.ini` and `setup.ini`, which
-store the user-configured registry data.
+`/wfs` contains various configuration files, such as `group.ini` and `setup.ini`
+(partially XML-formatted, despite the file extension), which store the
+user-configured registry data. These files may be `gzip`-compressed.
 
 IGEL encrypted filesystems contain two extents - of type `WRITEABLE` and
 `LOGIN` respectively - and are handled internally by various tools:
@@ -319,6 +320,24 @@ Once the keys have been obtained, the encrypted filesystem can be decrypted;
 in older IGEL OS versions, it appears these are often LUKS containers, but in
 later versions, often are encrypted in plain mode, with the cipher `aes-xts-plain64`
 and a key size of 512 bits (halved in XTS mode, i.e. 2x AES-256).
+
+Plain mode (`aes-xts-plain64`):
+
+```
+cryptsetup open \
+    --type=plain \
+    --cipher=aes-xts-plain64 \
+    --key-size=512 \
+    --key-file=<keyfile> \
+    <device> \
+    <name>
+```
+
+LUKS:
+
+```
+cryptsetup --master-key-file=<keyfile> open <device> <name>
+```
 
 #### Extent Filesystems
 
