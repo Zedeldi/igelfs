@@ -3,6 +3,7 @@
 import io
 import subprocess
 import tarfile
+import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
 
@@ -61,3 +62,12 @@ def tarfile_from_bytes(data: bytes) -> Generator[tarfile.TarFile]:
     with io.BytesIO(data) as file:
         with tarfile.open(fileobj=file) as tar:
             yield tar
+
+
+@contextmanager
+def tempfile_from_bytes(data: bytes) -> Generator[str]:
+    """Write bytes to temporary file and return path."""
+    with tempfile.NamedTemporaryFile(delete_on_close=False) as file:
+        file.write(data)
+        file.close()
+        yield file.name
