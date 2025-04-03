@@ -113,6 +113,7 @@ class Registry:
     """Class to obtain and parse registry data."""
 
     WFS_PARTITION_MINOR = 255
+    GROUP_FILENAME = "group.ini"
     GROUP_GZ_FILENAME = "group.ini.gz"
     KEY_SEPARATOR = "."
     DEFAULT_PASSWORD = 0x43
@@ -209,7 +210,10 @@ class Registry:
             with Cryptsetup(wfs, keyfile) as mapping:
                 with Mount(mapping) as mountpoint:
                     mountpoint = Path(mountpoint)
-                    with open(mountpoint / cls.GROUP_GZ_FILENAME, "rb") as file:
-                        data = file.read()
-        data = gzip.decompress(data)
+                    if (path := (mountpoint / cls.GROUP_FILENAME)).exists():
+                        with open(path, "rb") as file:
+                            data = file.read()
+                    else:
+                        with open(mountpoint / cls.GROUP_GZ_FILENAME, "rb") as file:
+                            data = gzip.decompress(file.read())
         return cls(data=data.decode())
