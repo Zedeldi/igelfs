@@ -8,6 +8,7 @@ from typing import Any
 
 from igelfs.filesystem import Filesystem
 from igelfs.lxos import LXOSParser
+from igelfs.registry import Registry
 
 try:
     from igelfs.convert import Disk
@@ -72,6 +73,22 @@ def get_parser() -> ArgumentParser:
     )
     parser_boot_registry_set.add_argument("key", help="key to set")
     parser_boot_registry_set.add_argument("value", help="value to set")
+    parser_registry = subparsers.add_parser(
+        "registry", help="manage registry of filesystem"
+    )
+    parser_registry_subparsers = parser_registry.add_subparsers(
+        dest="action", help="action to perform for registry", required=True
+    )
+    parser_registry_get = parser_registry_subparsers.add_parser(
+        "get", help="get value from registry"
+    )
+    parser_registry_get.add_argument("--key", "-k", help="key to get")
+    parser_registry_get.add_argument(
+        "--decrypt", "-d", action="store_true", help="decrypt value"
+    )
+    parser_registry_get.add_argument(
+        "--json", "-j", action="store_true", help="format result as JSON"
+    )
     parser_keys = subparsers.add_parser(
         "keys", help="manage filesystem encryption keys"
     )
@@ -107,10 +124,13 @@ def get_parser() -> ArgumentParser:
 
 def check_args(args: Namespace) -> None:
     """Check sanity of parsed arguments."""
-    if (args.command == "keys" and not _KEYRING_AVAILABLE) or (
+    if (args.command in ("keys", "registry") and not _KEYRING_AVAILABLE) or (
         args.command == "convert" and not _CONVERT_AVAILABLE
     ):
         print(f"Command '{args.command}' is not available.")
+        sys.exit(1)
+    if args.command == "registry" and args.decrypt and not args.key:
+        print("Key must be set when decrypting registry value")
         sys.exit(1)
 
 
@@ -145,6 +165,27 @@ def main() -> None:
                     boot_registry = filesystem.boot_registry
                     boot_registry.set_entry(args.key, args.value)
                     filesystem.write_boot_registry(boot_registry)
+        case "registry":
+            match args.action:
+                case "get":
+                    registry = Registry.from_filesystem(filesystem)
+                    registry_value = (
+                        {
+                            args.key: (
+                                registry.get_crypt(args.key)
+                                if args.decrypt
+                                else registry.get(args.key)
+                            )
+                        }
+                        if args.key
+                        else registry.to_dict()
+                    )
+                    if args.json:
+                        print(json.dumps(registry_value))
+                    else:
+                        pprint(
+                            registry_value.get(args.key) if args.key else registry_value
+                        )
         case "keys":
             keyring = Keyring.from_filesystem(filesystem)
             match args.name:
