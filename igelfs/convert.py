@@ -39,7 +39,7 @@ class Disk:
         """
         device = parted.getDevice(self.path.as_posix())
         disk = parted.freshDisk(device, "gpt")
-        for partition_minor in filesystem.partition_minors_by_directory:
+        for partition_minor in sorted(filesystem.partition_minors_by_directory):
             sections = filesystem.find_sections_by_directory(partition_minor)
             payload = Section.get_payload_of(sections)
             # Get start of free region at end of disk
@@ -62,11 +62,12 @@ class Disk:
         """Write filesystem data to partitions."""
         with Losetup(self.path) as device:
             for partition, partition_minor in zip(
-                get_partitions(device), filesystem.partition_minors_by_directory
+                sorted(get_partitions(device), key=lambda partition: partition.index),
+                sorted(filesystem.partition_minors_by_directory),
             ):
                 sections = filesystem.find_sections_by_directory(partition_minor)
                 payload = Section.get_payload_of(sections)
-                with open(partition, "wb") as fd:
+                with open(partition.path, "wb") as fd:
                     fd.write(payload)
 
     @classmethod

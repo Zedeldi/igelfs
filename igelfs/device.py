@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import uuid
 from collections.abc import Generator
+from dataclasses import dataclass
 from glob import glob
 
 from igelfs.utils import BaseContext, run_process
@@ -161,10 +162,29 @@ class Mount(BaseContext):
                 cls.unmount(mountpoint)
 
 
-def get_partitions(path: str | os.PathLike) -> tuple[str, ...]:
-    """Return tuple of partitions for path to device."""
-    return tuple(
-        partition
-        for partition in glob(f"{path}*", recursive=True)
-        if re.search(rf"{path}p?[0-9]+", partition)
+@dataclass
+class PartitionDescriptor:
+    """Dataclass to describe a partition path."""
+
+    path: str
+    index: int
+    device: str | os.PathLike
+
+
+def get_partition_index(path: str | os.PathLike, partition: str) -> int | None:
+    """Return partition index from path."""
+    return (
+        int(match.group(1))
+        if (match := re.search(rf"{path}p?([0-9]+)", partition))
+        else match
     )
+
+
+def get_partitions(path: str | os.PathLike) -> tuple[PartitionDescriptor, ...]:
+    """Return tuple of partitions for path to device."""
+    partitions = (
+        PartitionDescriptor(partition, index, device=path)
+        for partition in glob(f"{path}*", recursive=True)
+        if (index := get_partition_index(path, partition))  # Filter out None
+    )
+    return tuple(partitions)
