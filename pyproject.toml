@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "igelfs"
 description = "Python implementation of the IGEL filesystem."
-version = "2.8.0"
+version = "2.8.1"
 readme = "README.md"
 license = "GPL-3.0-only"
 authors = [
