@@ -47,7 +47,7 @@ class HashExclude(BaseDataModel):
     repeat: int = field(  # repeat after ... bytes if 0 -> no repeat
         metadata=DataModelMetadata(size=4)
     )
-    # end address where the exclude area end (only used if repeat is defined)
+    # end address where the exclude area ends (only used if repeat is not 0)
     end: int = field(metadata=DataModelMetadata(size=8))
 
     def get_excluded_indices(self) -> list[int]:
@@ -78,18 +78,18 @@ class HashHeader(BaseDataModel):
     ident: str = field(  # Ident string "chksum"
         metadata=DataModelMetadata(size=6, default=HASH_HDR_IDENT)
     )
-    # version number of header probably use with flags
-    # something like version = version & 0xff; if (version |= FLAG ...)
+    # version number of header - possibly used with flags
+    # e.g. version = version & 0xff; if (version |= FLAG ...)
     version: int = field(metadata=DataModelMetadata(size=2))
-    signature: bytes = field(  # 512 Bytes -> 4096bit signature length
+    signature: bytes = field(  # 512 bytes -> 4096-bit signature length
         metadata=DataModelMetadata(size=512)
     )
     count_hash: int = field(metadata=DataModelMetadata(size=8))  # count of hash values
-    # Used signature algo (which is a define like HASH_SIGNATURE_TYPE_NONE)
+    # Used signature algorithm (e.g. HASH_SIGNATURE_TYPE_NONE)
     signature_algo: int = field(metadata=DataModelMetadata(size=1))
-    # Used hash algo (which is a define like HASH_ALGO_TYPE_NONE)
+    # Used hash algorithm (e.g. HASH_ALGO_TYPE_NONE)
     hash_algo: int = field(metadata=DataModelMetadata(size=1))
-    # bytes used for hash sha256 -> 32bytes, sha512 -> 64bytes
+    # bytes used for hash sha256 -> 32 bytes, sha512 -> 64 bytes
     hash_bytes: int = field(metadata=DataModelMetadata(size=2))
     blocksize: int = field(  # size of data used for hashing
         metadata=DataModelMetadata(size=4)
@@ -100,16 +100,16 @@ class HashHeader(BaseDataModel):
     hash_block_size: int = field(  # size of the hash values block
         metadata=DataModelMetadata(size=4)
     )
-    count_excludes: int = field(  # count of struct igel_hash_exclude variables
+    count_excludes: int = field(  # count of HashExclude models
         metadata=DataModelMetadata(size=2)
     )
-    excludes_size: int = field(  # size of struct igel_hash_exclude variables in Bytes
+    excludes_size: int = field(  # size of HashExclude models in bytes
         metadata=DataModelMetadata(size=2)
     )
     offset_hash: int = field(  # offset of hash block from section header in bytes
         metadata=DataModelMetadata(size=4)
     )
-    # offset of hash_excludes block from start of igel_hash_header in bytes
+    # offset of hash excludes block from start of hash header in bytes
     offset_hash_excludes: int = field(metadata=DataModelMetadata(size=4))
     # reserved for further use/padding for excludes alignment
     reserved: bytes = field(metadata=DataModelMetadata(size=4))

@@ -22,9 +22,8 @@ def generate_boot_id() -> str:
 class BootRegistryEntry(BaseDataModel):
     """Dataclass to describe each entry of boot registry."""
 
-    flag: int = field(  # first 9 bits next, 1 bit next present, 6 bit len key
-        metadata=DataModelMetadata(size=2)
-    )
+    # 16 bits: 9 bits next index, 1 bit next present, 6 bit key length
+    flag: int = field(metadata=DataModelMetadata(size=2))
     data: bytes = field(metadata=DataModelMetadata(size=62))
 
     @property
@@ -162,9 +161,7 @@ class BootRegistryHeader(BaseBootRegistryHeader):
     hdr_version: int = field(  # 0x01 for the first
         metadata=DataModelMetadata(size=1, default=1)
     )
-    boot_id: str = field(  # boot_id
-        metadata=DataModelMetadata(size=21, default=generate_boot_id)
-    )
+    boot_id: str = field(metadata=DataModelMetadata(size=21, default=generate_boot_id))
     enc_alg: int = field(metadata=DataModelMetadata(size=1))  # encryption algorithm
     flags: int = field(metadata=DataModelMetadata(size=2))  # flags
     empty: bytes = field(metadata=DataModelMetadata(size=82))  # placeholder
@@ -174,11 +171,11 @@ class BootRegistryHeader(BaseBootRegistryHeader):
     used: bytes = field(  # bitmap with used 64 byte blocks
         metadata=DataModelMetadata(size=64)
     )
-    dir: bytes = field(  # directory bitmap (4 bits for each block -> key len)
+    dir: bytes = field(  # directory bitmap (4 bits for each block -> key length)
         metadata=DataModelMetadata(size=252)
     )
     reserve: bytes = field(metadata=DataModelMetadata(size=4))  # placeholder
-    entry: DataModelCollection[BootRegistryEntry] = field(  # real data
+    entry: DataModelCollection[BootRegistryEntry] = field(  # actual entries
         metadata=DataModelMetadata(size=504 * BootRegistryEntry.get_model_size())
     )
 

@@ -25,10 +25,10 @@ class FragmentDescriptor(BaseDataModel):
 class PartitionDescriptor(BaseDataModel):
     """Dataclass to handle partition descriptors."""
 
-    minor: int = field(  # a replication of igf_sect_hdr.partition_minor
+    minor: int = field(  # partition minor, copy of SectionHeader.partition_minor
         metadata=DataModelMetadata(size=4)
     )
-    type: int = field(  # partition type, a replication of igf_part_hdr.type
+    type: int = field(  # partition type, copy of PartitionHeader.type
         metadata=DataModelMetadata(size=2)
     )
     first_fragment: int = field(  # index of the first fragment
@@ -59,7 +59,7 @@ class Directory(BaseDataModel, CRCMixin):
     dir_type: int = field(  # allows for future extensions
         metadata=DataModelMetadata(size=2)
     )
-    max_minors: int = field(  # redundant, allows for dynamic part table
+    max_minors: int = field(  # redundant, allows for dynamic partition table
         metadata=DataModelMetadata(size=2, default=DIR_MAX_MINORS)
     )
     version: int = field(  # update count, never used so far
@@ -69,7 +69,7 @@ class Directory(BaseDataModel, CRCMixin):
     n_fragments: int = field(  # total number of fragments
         metadata=DataModelMetadata(size=4)
     )
-    max_fragments: int = field(  # redundant, allows for dynamic frag table
+    max_fragments: int = field(  # redundant, allows for dynamic fragment table
         metadata=DataModelMetadata(size=4, default=MAX_FRAGMENTS)
     )
     extension: bytes = field(  # unspecified, for future extensions

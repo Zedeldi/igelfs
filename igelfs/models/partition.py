@@ -41,10 +41,10 @@ class PartitionHeader(BaseDataModel):
     n_extents: int = field(  # number of extents, if any
         metadata=DataModelMetadata(size=2)
     )
-    name: bytes = field(  # optional character code (for pdir)
+    name: bytes = field(  # optional character code, e.g. 'sys'
         metadata=DataModelMetadata(size=16)
     )
-    # A high level hash over almost all files, used to determine if an update is needed
+    # A hash of almost all files, used to determine if an update is needed
     update_hash: bytes = field(metadata=DataModelMetadata(size=64))
 
     def __post_init__(self) -> None:
@@ -86,7 +86,9 @@ class PartitionExtent(BaseDataModel):
         metadata=DataModelMetadata(size=8)
     )
     length: int = field(metadata=DataModelMetadata(size=8))  # size of data in bytes
-    name: bytes = field(metadata=DataModelMetadata(size=8))  # optional character code
+    name: bytes = field(
+        metadata=DataModelMetadata(size=8)
+    )  # optional character code, e.g. 'kernel'
 
     def get_type(self) -> ExtentType:
         """Return ExtentType from PartitionExtent instance."""
@@ -113,16 +115,16 @@ class PartitionExtents(BaseDataModel):
 class PartitionExtentReadWrite(BaseDataModel):
     """Dataclass to handle partition extent read/write data."""
 
-    ext_num: int = field(  # extent number where to read from
+    ext_num: int = field(  # extent number from where to read
         metadata=DataModelMetadata(size=1)
     )
-    pos: int = field(  # position inside extent to start reading from
+    pos: int = field(  # position inside extent from where to start reading
         metadata=DataModelMetadata(size=8)
     )
-    size: int = field(  # size of data (WARNING limited to EXTENT_MAX_READ_WRITE_SIZE)
+    size: int = field(  # size of data (limited to EXTENT_MAX_READ_WRITE_SIZE)
         metadata=DataModelMetadata(size=8)
     )
-    data: int = field(  # destination/src pointer for the data to
+    data: int = field(  # destination/source pointer for the data
         metadata=DataModelMetadata(size=1)
     )
 
