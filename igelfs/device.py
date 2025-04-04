@@ -1,4 +1,14 @@
-"""Functions to handle device operations."""
+"""
+Functions to handle device operations.
+
+These helper classes rely on various binaries available on Linux-based
+platforms, e.g. cryptsetup, losetup, mount.
+Device operations are not available on other platforms.
+
+Classes inheriting from BaseContext can be used as a context manager, closing
+or removing the mapped/mounted device on exiting the context. Alternatively,
+they can be used as standalone helper classes with static methods.
+"""
 
 import contextlib
 import os
@@ -181,10 +191,9 @@ def get_partition_index(path: str | os.PathLike, partition: str) -> int | None:
 
 
 def get_partitions(path: str | os.PathLike) -> tuple[PartitionDescriptor, ...]:
-    """Return tuple of partitions for path to device."""
-    partitions = (
+    """Return tuple of partition descriptors for path to device."""
+    return tuple(
         PartitionDescriptor(partition, index, device=path)
         for partition in glob(f"{path}*", recursive=True)
         if (index := get_partition_index(path, partition))  # Filter out None
     )
-    return tuple(partitions)

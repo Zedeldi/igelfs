@@ -27,7 +27,14 @@ from igelfs.utils import tarfile_from_bytes
 
 @dataclass
 class ExtentFilesystem(BaseDataModel):
-    """Dataclass to handle extent filesystem data."""
+    """
+    Dataclass to handle extent filesystem data.
+
+    The nonce components, authenticated data and payload size are located in
+    the header (48 bytes). The ciphertext is found in data (1048528 bytes),
+    which is encrypted using the XChacha20-Poly1305 (AEAD) cryptosystem.
+    The decrypted data is an LZF-compressed tar archive.
+    """
 
     LZF_DECOMPRESS_SIZE: ClassVar[int] = 4096
 
@@ -50,7 +57,12 @@ class ExtentFilesystem(BaseDataModel):
 
     @property
     def nonce(self) -> bytes:
-        """Return nonce for extent filesystem encryption."""
+        """
+        Return nonce for extent filesystem encryption.
+
+        The cryptographic nonce is determined by hashing both nonce components
+        with SHA-256, then XORing the digests together.
+        """
         nonce = (self.nonce_1, self.nonce_2)
         hashes = map(lambda data: hashlib.sha256(data).digest(), nonce)
         return bytes([a ^ b for a, b in zip(*hashes)])

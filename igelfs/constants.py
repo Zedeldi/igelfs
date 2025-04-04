@@ -28,25 +28,21 @@ class PartitionType(IntEnum):
     """Enumeration for partition types."""
 
     EMPTY = 0  # partition descriptor is free
-    IGEL_RAW = 1  # an uncompressed an writable partition
-    IGEL_COMPRESSED = 2  # a compressed read-only partition
+    IGEL_RAW = 1  # uncompressed, writable partition
+    IGEL_COMPRESSED = 2  # compressed read-only partition
     IGEL_FREELIST = 3  # only used by the partition directory
     IGEL_RAW_RO = (
-        4  # an uncompressed read-only partition (so CRC is valid and should be checked)
+        4  # uncompressed, read-only partition (CRC is valid and should be checked)
     )
-    IGEL_RAW_4K_ALIGNED = (
-        5  # an uncompressed an writable partition which is aligned to 4k sectors
-    )
+    IGEL_RAW_4K_ALIGNED = 5  # uncompressed, writable partition aligned to 4k sectors
 
 
 class PartitionFlag(IntFlag):
     """Enumeration for partition flags."""
 
-    UPDATE_IN_PROGRESS = 0x100  # flag indicating a not yet to use partition
-    HAS_IGEL_HASH = (
-        0x200  # flag indicating the presence of a igel hash block after the header
-    )
-    HAS_CRYPT = 0x400  # flag indicating the presence of a encryption
+    UPDATE_IN_PROGRESS = 0x100  # do not use partition
+    HAS_IGEL_HASH = 0x200  # IGEL hash block present after the header
+    HAS_CRYPT = 0x400  # partition is encrypted
 
 
 class ExtentType(IntEnum):

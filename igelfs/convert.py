@@ -33,9 +33,11 @@ class Disk:
         Create a partition table on the block device.
 
         The disk will have the following:
-          - GPT partition table
-          - Partitions for each partition in IGEL filesystem
-              - Partition names matching partition_minor if lxos_config specified
+        - GPT partition table
+        - Partitions for each partition in IGEL filesystem
+          - Partition names matching partition_minor if lxos_config specified
+
+        Partitions are ordered by partition minor.
         """
         device = parted.getDevice(self.path.as_posix())
         disk = parted.freshDisk(device, "gpt")

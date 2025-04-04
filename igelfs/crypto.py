@@ -1,4 +1,16 @@
-"""Helper module for cryptographic operations."""
+"""
+Helper module for cryptographic operations.
+
+Extent filesystems are encrypted using the XChacha20-Poly1305 (AEAD) cryptosystem
+with a key derived from the boot_id (see CryptoHelper.get_extent_key), and
+the authenticated data and nonce stored in the header.
+
+Keys stored in kmlconfig.json are encrypted using AES-XTS, with a master key
+derived from the extent key (see CryptoHelper.get_master_key).
+
+Once keys have been decrypted with the master key, they can be used for disk
+encryption with cryptsetup (LUKS or plain-mode).
+"""
 
 import base64
 import hashlib
@@ -51,9 +63,15 @@ class CryptoHelper:
         )
 
     @staticmethod
-    def aes_xts_decrypt(data: bytes, key: bytes) -> bytes:
-        """Decrypt data with specified key, with sliced IV."""
-        iv = key[32:]  # last 32 bytes of key, assuming key is 64 bytes
+    def aes_xts_decrypt(data: bytes, key: bytes, iv: bytes | None = None) -> bytes:
+        """
+        Decrypt data with specified key and initialisation vector, using AES-XTS.
+
+        By default, initialisation vector is the second half of the key ([32:]).
+        This means the IV is determined by the key, meaning equal plaintexts
+        will result in the same ciphertext.
+        """
+        iv = iv or key[32:]  # last 32 bytes of key, assuming key is 64 bytes
         cipher = Cipher(AES(key), mode=XTS(iv[:16]), backend=default_backend())
         return cipher.decryptor().update(data)
 
@@ -61,7 +79,18 @@ class CryptoHelper:
     def get_extent_key(
         boot_id: str, base64_key: str | None = None, key_size: int = Aead.KEY_SIZE
     ) -> bytes:
-        """Return key derived from boot_id for extent filesystem."""
+        """
+        Return key derived from boot_id for extent filesystem.
+
+        The extent key is derived in the following way:
+        - boot_id is hashed with SHA-256 (32 bytes)
+        - digest XORed with STATIC_KEY
+        - result hashed with SHA-256 multiple times (determined by sum)
+        - digest base64-encoded
+
+        Optionally, a base64-encoded key can be passed to be hashed and XORed
+        to the result, before being returned.
+        """
         # initial values are sha256 hash of boot_id and a static key
         boot_id_hash = hashlib.sha256(boot_id.encode()).digest()
         # xor boot_id_hash with static key
@@ -77,7 +106,7 @@ class CryptoHelper:
                 bin_key = hashlib.sha256(bin_key).digest()
             result = bytes([result[idx] ^ bin_key[idx] for idx in range(key_size)])
 
-        # return base64 encoded result
+        # return base64-encoded result
         return base64.b64encode(result)
 
     @classmethod
@@ -113,7 +142,19 @@ class CryptoHelper:
         priv: bytes,
         level: int,
     ) -> bytes:
-        """Return master key for key decryption from extent key."""
+        """
+        Return master key for key decryption from extent key.
+
+        The master key is derived in the following way:
+        - Argon2ID KDF with the following parameters:
+          - size: 32 bytes
+          - password: first 20 bytes of extent_key (base64 decoded, then re-encoded)
+          - salt: passed from key configuration
+          - opslimit and memlimit: dependent on level (see CryptoHelper.KDF_CONFIG)
+        - pub (32 bytes) is appended to result = 64 bytes
+        - Result is hashed with SHA-512 (64 bytes)
+        - Digest is used as key to decrypt priv with AES-XTS
+        """
         password = base64.b64encode(base64.b64decode(extent_key)[:20])
         return cls._get_master_key(
             password=password, salt=salt, pub=pub, priv=priv, level=level

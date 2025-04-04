@@ -110,7 +110,25 @@ class XmlHelper:
 
 
 class Registry:
-    """Class to obtain and parse registry data."""
+    """
+    Class to obtain and parse registry data.
+
+    Registry data is found in group.ini and setup.ini of partition minor 255 (wfs).
+    These files, despite their file extension, are partially XML-formatted, with
+    key-values separated by equals signs.
+
+    For example:
+    <x>
+      <xserver0>
+        resolution=<1360x768>
+      </xserver0>
+    </x>
+
+    This data will be transformed into valid XML using regex, then parsed.
+
+    Sensitive values, such as passwords, are 'encrypted' using a simple
+    XOR-based algorithm (see Registry.encrypt and Registry.decrypt).
+    """
 
     WFS_PARTITION_MINOR = 255
     GROUP_FILENAME = "group.ini"
@@ -176,7 +194,16 @@ class Registry:
 
     @staticmethod
     def decrypt(ciphertext: str, strict: bool = True) -> str:
-        """Decrypt ciphertext from registry and return result."""
+        """
+        Decrypt ciphertext from registry and return result.
+
+        ciphertext is a hexadecimal string, containing the length (2 bytes),
+        password (1 byte) and payload (remaining bytes).
+        Each byte is XORed with the previous result (initially 0) and the password.
+
+        As the password is stored with the ciphertext, this only provides
+        security through obscurity.
+        """
         length, password, data = (
             int(ciphertext[:4], 16) - 1,
             int(ciphertext[4:6], 16),
