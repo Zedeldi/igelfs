@@ -1,6 +1,6 @@
 # igelfs
 
-[![GitHub license](https://img.shields.io/github/license/Zedeldi/igelfs?style=flat-square)](https://github.com/Zedeldi/igelfs/blob/master/LICENSE) [![GitHub last commit](https://img.shields.io/github/last-commit/Zedeldi/igelfs?style=flat-square)](https://github.com/Zedeldi/igelfs/commits) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
+[![GitHub license](https://img.shields.io/github/license/Zedeldi/igelfs?style=flat-square)](https://github.com/Zedeldi/igelfs/blob/master/LICENSE) [![GitHub last commit](https://img.shields.io/github/last-commit/Zedeldi/igelfs?style=flat-square)](https://github.com/Zedeldi/igelfs/commits) [![PyPI version](https://img.shields.io/pypi/v/igelfs?style=flat-square)](https://pypi.org/project/igelfs/) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 
 Python implementation of the IGEL filesystem.
 
@@ -19,45 +19,45 @@ in an object-oriented way.
 
 Once installed, there are usually three partitions on UEFI systems, in the following format:
 
--   Partition #1
-    -   IGEL FS
--   Partition #2
-    -   FAT32, ESP #1
--   Partition #3
-    -   FAT32, ESP #2
+- Partition #1
+  - IGEL FS
+- Partition #2
+  - FAT32, ESP #1
+- Partition #3
+  - FAT32, ESP #2
 
 For OS 12, it appears the IGEL FS partition is #4, and partition #1 is small (~9 MiB) and filled with null bytes.
 
 Please see the following snippet from `igelfs.__init__` for a description of the filesystem structure:
 
->   -   Section #0
->       -   Boot Registry
->           -   Boot Registry Entries
->       - Directory
->           -   Partition Descriptors
->           -   Fragment Descriptors
->   -   Section #1, Partition Minor #1
->       -   Section Header
->       -   Partition Block
->           -   Partition Header
->           -   Partition Extents * `PartitionHeader.n_extents`
->       -   Hash Block, optional
->           -   Hash Header
->           -   Hash Excludes * `HashHeader.count_excludes`
->           -   Hash Values => `HashHeader.hash_block_size`
->       -   Partition Data
->           - Extents
->           - Payload
->   -   Section #2, Partition Minor #1
->       -   Section Header
->       -   Partition Data
->   -   Section #3, Partition Minor #2...
+> - Section #0
+>   - Boot Registry
+>     - Boot Registry Entries
+>   - Directory
+>     - Partition Descriptors
+>     - Fragment Descriptors
+> - Section #1, Partition Minor #1
+>   - Section Header
+>   - Partition Block
+>     - Partition Header
+>     - Partition Extents \* `PartitionHeader.n_extents`
+>   - Hash Block, optional
+>     - Hash Header
+>     - Hash Excludes \* `HashHeader.count_excludes`
+>     - Hash Values => `HashHeader.hash_block_size`
+>   - Partition Data
+>     - Extents
+>     - Payload
+> - Section #2, Partition Minor #1
+>   - Section Header
+>   - Partition Data
+> - Section #3, Partition Minor #2...
 >
->   In short, all partitions are stored in sections as a linked list.
->   Each section has a section header, which contains the partition minor (ID)
->   and the next section for the partition until `0xffffffff`.
->   The first section of a partition also contains a partition header
->   and optionally a hash header.
+> In short, all partitions are stored in sections as a linked list.
+> Each section has a section header, which contains the partition minor (ID)
+> and the next section for the partition until `0xffffffff`.
+> The first section of a partition also contains a partition header
+> and optionally a hash header.
 
 For more information about these data structures, see [models](#models).
 
@@ -77,39 +77,39 @@ add the `default` value to the metadata of the field.
 
 #### Section
 
--   Stores section header, partition block, hash block and payload
--   Contains a `__post_init__` magic dataclass method to parse payload into additional data groups
--   Has methods to calculate hash, split into or extract data, such as partition extents, from sections
+- Stores section header, partition block, hash block and payload
+- Contains a `__post_init__` magic dataclass method to parse payload into additional data groups
+- Has methods to calculate hash, split into or extract data, such as partition extents, from sections
 
 #### Partition
 
--   Stores partition header and extent information; the actual extent payload is stored at the beginning of the section payload, and can span multiple sections
--   Provides methods to parse partition and extent information
+- Stores partition header and extent information; the actual extent payload is stored at the beginning of the section payload, and can span multiple sections
+- Provides methods to parse partition and extent information
 
 #### Hash
 
--   Data group to store hash header, excludes and values
--   Implements calculating hashes, getting digest values and verifying signatures
+- Data group to store hash header, excludes and values
+- Implements calculating hashes, getting digest values and verifying signatures
 
 #### Boot Registry
 
--   Stores basic boot information and boot registry entries
--   Legacy format uses `\n`-separated `key=value` pairs, terminated by `EOF`
--   New format uses fixed-size entry models with a 2-byte flag to indicate size and continuation
+- Stores basic boot information and boot registry entries
+- Legacy format uses `\n`-separated `key=value` pairs, terminated by `EOF`
+- New format uses fixed-size entry models with a 2-byte flag to indicate size and continuation
 
 #### Directory
 
--   Stores directory information to look-up locations of partitions efficiently, without linearly searching the entire filesystem
--   Find:
-    -   Partition descriptor by partition minor
-    -   Fragment descriptor by partition descriptor attribute (`first_fragment`)
-    -   First section of partition by fragment descriptor attribute (`first_section`)
+- Stores directory information to look-up locations of partitions efficiently, without linearly searching the entire filesystem
+- Find:
+  - Partition descriptor by partition minor
+  - Fragment descriptor by partition descriptor attribute (`first_fragment`)
+  - First section of partition by fragment descriptor attribute (`first_section`)
 
 #### Bootsplash
 
--   Stores extent information from bootsplash partition
--   Contains bootsplash header, list of bootsplash information models and payload
--   Provides method to obtain [`PIL.Image.Image`](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image) instances from payload
+- Stores extent information from bootsplash partition
+- Contains bootsplash header, list of bootsplash information models and payload
+- Provides method to obtain [`PIL.Image.Image`](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image) instances from payload
 
 ### Methods
 
@@ -141,20 +141,22 @@ The CRC32 checksum is calculated from all of the bytes in a section, starting at
 
 #### Hash
 
-The hash values are calculated using the [BLAKE2b](https://en.wikipedia.org/wiki/BLAKE_(hash_function)) algorithm with a digest size specified in `hash_bytes`, from all sections in a partition, excluding the indicies specified by the ranges in the hash excludes.
+The hash values are calculated using the [BLAKE2b](<https://en.wikipedia.org/wiki/BLAKE_(hash_function)>) algorithm with a digest size specified in `hash_bytes`, from all sections in a partition, excluding the indicies specified by the ranges in the hash excludes.
 The start, end and size are based on absolute addresses not relative to section or partition headers.
 Excluded bytes are replaced with null bytes (`\x00`).
 
 Please see the docstring below from `igelfs.models.hash.HashExclude` for more information:
 
->   The following bytes are normally excluded for each section (inclusive):
->   -   0-3 => `SectionHeader.crc`
->   -   16-17 => `SectionHeader.generation`
->   -   22-25 => `SectionHeader.next_section`
+> The following bytes are normally excluded for each section (inclusive):
 >
->   The following bytes are normally excluded for section zero (inclusive, shifted by partition extents):
->   -   164-675 => `HashHeader.signature`
->   -   836-836 + (`HashHeader.hash_bytes` * `HashHeader.count_hash`) => `Section.hash_value`
+> - 0-3 => `SectionHeader.crc`
+> - 16-17 => `SectionHeader.generation`
+> - 22-25 => `SectionHeader.next_section`
+>
+> The following bytes are normally excluded for section zero (inclusive, shifted by partition extents):
+>
+> - 164-675 => `HashHeader.signature`
+> - 836-836 + (`HashHeader.hash_bytes` \* `HashHeader.count_hash`) => `Section.hash_value`
 
 Similarly to the `CRC_OFFSET`, the hash excludes serve to remove dynamic values from the hash input;
 only the payload and metadata of the section is verified.
@@ -214,10 +216,10 @@ For UEFI systems, the boot process is described below:
 
 This extract from a [Red Hat article](https://access.redhat.com/articles/5991201) describes the initial boot process clearly:
 
->   shim is a first-stage boot loader that embeds a self-signed Certificate Authority (CA) certificate.
->   Microsoft signs shim binaries, which ensures that they can be booted on all machines with a pre-loaded Microsoft certificate.
->   shim uses the embedded certificate to verify the signature of the GRUB 2 boot loader.
->   shim also provides a protocol that GRUB 2 uses to verify the kernel signature.
+> shim is a first-stage boot loader that embeds a self-signed Certificate Authority (CA) certificate.
+> Microsoft signs shim binaries, which ensures that they can be booted on all machines with a pre-loaded Microsoft certificate.
+> shim uses the embedded certificate to verify the signature of the GRUB 2 boot loader.
+> shim also provides a protocol that GRUB 2 uses to verify the kernel signature.
 
 ### Encrypted Filesystem
 
@@ -311,7 +313,7 @@ Run on guest: `LD_PRELOAD=/path/to/add_key.so /usr/bin/kml/load_cred -D`
 
 `add_key` will be loaded by the user-modified library `add_key.so` first,
 which will cause any calls to `add_key` from `load_cred` to simply output the
-passed arguments; the keys will *not* actually be added to the keyring, but
+passed arguments; the keys will _not_ actually be added to the keyring, but
 it will return `0` for success to the caller.
 
 #### Encryption Type
@@ -380,15 +382,15 @@ it is possible to derive the master key for decrypting individual filesystem key
 
 The master key is derived in the following way (see `CryptoHelper.get_master_key`):
 
--   Argon2ID KDF with the following parameters:
-    -   `size`: 32 bytes
-    -   `password`: first 20 bytes of `CryptoHelper.get_extent_key(boot_id)` (base64 decoded, then re-encoded)
-    -   `salt`: from `system.salt`
-    -   `opslimit` and `memlimit`: dependent on `system.level`
--   `slots[n].pub` (32 bytes) is appended to result = 64 bytes
--   Result is hashed with SHA-512 (64 bytes)
--   Digest is used as key to decrypt `slots[n].priv` with AES-XTS, where the
-    initialisation vector is the second half of the key (`[32:]`)
+- Argon2ID KDF with the following parameters:
+  - `size`: 32 bytes
+  - `password`: first 20 bytes of `CryptoHelper.get_extent_key(boot_id)` (base64 decoded, then re-encoded)
+  - `salt`: from `system.salt`
+  - `opslimit` and `memlimit`: dependent on `system.level`
+- `slots[n].pub` (32 bytes) is appended to result = 64 bytes
+- Result is hashed with SHA-512 (64 bytes)
+- Digest is used as key to decrypt `slots[n].priv` with AES-XTS, where the
+  initialisation vector is the second half of the key (`[32:]`)
 
 This master key is then used to decrypt each key in the same way.
 
@@ -414,14 +416,14 @@ keyring.get_key(255)
 
 ### Libraries
 
--   [rsa](https://pypi.org/project/rsa/) - signature verification
--   [pillow](https://pypi.org/project/pillow/) - bootsplash images
--   [python-magic](https://pypi.org/project/python-magic/) - payload identification
--   [pyparted](https://pypi.org/project/pyparted/) - disk conversion (optional)
--   [cryptography](https://pypi.org/project/cryptography/) - encryption (optional)
--   [PyNaCl](https://pypi.org/project/PyNaCl/) - encryption, bindings to [libsodium](https://github.com/jedisct1/libsodium) (optional)
--   [python-lzf](https://pypi.org/project/python-lzf/) - compression, bindings to liblzf (optional)
--   [pytest](https://pypi.org/project/pytest/) - testing, see [below](#testing)
+- [rsa](https://pypi.org/project/rsa/) - signature verification
+- [pillow](https://pypi.org/project/pillow/) - bootsplash images
+- [python-magic](https://pypi.org/project/python-magic/) - payload identification
+- [pyparted](https://pypi.org/project/pyparted/) - disk conversion (optional)
+- [cryptography](https://pypi.org/project/cryptography/) - encryption (optional)
+- [PyNaCl](https://pypi.org/project/PyNaCl/) - encryption, bindings to [libsodium](https://github.com/jedisct1/libsodium) (optional)
+- [python-lzf](https://pypi.org/project/python-lzf/) - compression, bindings to liblzf (optional)
+- [pytest](https://pypi.org/project/pytest/) - testing, see [below](#testing)
 
 ## Usage
 
@@ -442,7 +444,7 @@ Specify `-m "not slow"` to skip slow tests.
 
 ## Credits
 
--   [IGEL](https://www.igel.com/) - author of `igel-flash-driver`
+- [IGEL](https://www.igel.com/) - author of `igel-flash-driver`
 
 ## License
 
