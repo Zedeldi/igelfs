@@ -28,6 +28,9 @@ tests = ["pytest"]
 
 [project.urls]
 Homepage = "https://github.com/Zedeldi/igelfs"
+Documentation = "https://github.com/Zedeldi/igelfs/wiki"
+Repository = "https://github.com/Zedeldi/igelfs.git"
+Issues = "https://github.com/Zedeldi/igelfs/issues"
 
 [project.scripts]
 igelfs-cli = "igelfs.cli:main"
