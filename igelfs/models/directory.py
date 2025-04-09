@@ -215,3 +215,15 @@ class Directory(BaseDataModel, CRCMixin):
         fragment.first_section = first_section
         fragment.length = length
         self.update_crc()
+
+    def delete_entry(self, partition_minor: int) -> None:
+        """Delete directory entry for specified partition minor."""
+        fragment = self.find_fragment_by_partition_minor(partition_minor)
+        if not fragment:
+            raise ValueError(
+                f"Fragment for partition minor #{partition_minor} does not exist"
+            )
+        fragment_index = self.partition[partition_minor].first_fragment
+        self.partition[partition_minor] = PartitionDescriptor.new()
+        self.fragment[fragment_index] = FragmentDescriptor.new()
+        self.update_crc()

@@ -214,7 +214,7 @@ class Filesystem:
         """
         Write collection of sections to image contiguously, starting at index.
 
-        Returns total number of written bytes.
+        Return total number of written bytes.
         """
         return sum(
             self.write_section_to_index(section, index + offset)
@@ -265,9 +265,45 @@ class Filesystem:
         directory.create_entry(partition_minor, first_section, len(sections))
         self.write_directory(directory)
 
+    def delete_section_at_index(self, index: int) -> int:
+        """
+        Delete section at specified index by zeroing bytes.
+
+        Return number of written bytes.
+        """
+        data = bytes(IGF_SECTION_SIZE)
+        index = self._get_section_index(index)
+        offset = get_start_of_section(index)
+        return self.write_bytes(data, offset)
+
+    def delete_partition(self, partition_minor: int) -> None:
+        """Delete partition and directory entry."""
+        indexes = self.get_section_indexes_for_partition_minor(partition_minor)
+        if not indexes:
+            raise ValueError(f"Partition minor {partition_minor} not found")
+        for index in indexes:
+            self.delete_section_at_index(index)
+        directory = self.directory
+        directory.delete_entry(partition_minor)
+        self.write_directory(directory)
+
+    def get_section_indexes_for_partition_minor(self, partition_minor: int) -> set[int]:
+        """Return set of section indexes for partition minor."""
+        fragment = self.directory.find_fragment_by_partition_minor(partition_minor)
+        sections = self.find_sections_by_directory(partition_minor)
+        if not fragment or not sections:
+            return set()
+        indexes = [fragment.first_section]
+        indexes.extend(
+            section.header.next_section
+            for section in sections
+            if not section.end_of_chain
+        )
+        return set(indexes)
+
     @staticmethod
     def create_partition_from_bytes(
-        data: bytes, type_: int | PartitionType = 4
+        data: bytes, type_: int | PartitionType = PartitionType.IGEL_RAW_RO
     ) -> DataModelCollection[Section]:
         """Create partition from bytes and return collection of sections."""
         size = math.ceil(len(data) / 1024)
