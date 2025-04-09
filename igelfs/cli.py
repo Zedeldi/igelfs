@@ -55,6 +55,10 @@ def get_parser() -> ArgumentParser:
     parser_add.add_argument("input", help="path to file for partition")
     parser_add.add_argument("minor", type=int, help="partition minor")
     parser_add.add_argument("--type", "-t", type=int, help="partition type")
+    parser_remove = subparsers.add_parser(
+        "remove", help="remove partition from filesystem"
+    )
+    parser_remove.add_argument("minor", type=int, help="partition minor")
     parser_boot_registry = subparsers.add_parser(
         "boot-registry", help="manage boot registry of filesystem"
     )
@@ -150,6 +154,8 @@ def main() -> None:
                 opts["type_"] = args.type
             sections = Filesystem.create_partition_from_file(args.input, **opts)
             filesystem.write_partition(sections, args.minor)
+        case "remove":
+            filesystem.delete_partition(args.minor)
         case "boot-registry":
             match args.action:
                 case "get":
