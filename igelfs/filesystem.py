@@ -32,7 +32,7 @@ from igelfs.models import (
     SectionHeader,
 )
 from igelfs.models.base import BaseDataModel
-from igelfs.utils import get_section_of, get_start_of_section
+from igelfs.utils import get_consecutive_values, get_section_of, get_start_of_section
 
 
 class Filesystem:
@@ -300,6 +300,40 @@ class Filesystem:
             if not section.end_of_chain
         )
         return set(indexes)
+
+    def get_used_section_indexes(self) -> set[int]:
+        """Return set of used section indexes by directory."""
+        indexes = set()
+        for partition_minor in self.partition_minors_by_directory:
+            indexes |= self.get_section_indexes_for_partition_minor(partition_minor)
+        return indexes
+
+    def get_unused_section_indexes(self) -> set[int]:
+        """Return set of unused section indexes by directory."""
+        # Exclude section #0 and remove used indexes from range
+        return set(range(1, self.section_count + 1)) - self.get_used_section_indexes()
+
+    def clean(self) -> None:
+        """Zero any sections that are unused by directory."""
+        for index in self.get_unused_section_indexes():
+            self.delete_section_at_index(index)
+
+    def update_free_list(self, largest: bool = True) -> None:
+        """
+        Update free list of directory to largest or next free section.
+
+        If largest is True, set free list to use largest consecutive space.
+        Otherwise, use the first available group.
+        """
+        indexes = get_consecutive_values(self.get_unused_section_indexes())
+        if largest:
+            group = max(indexes, key=len)
+        else:
+            group = indexes[0]
+        first_section, length = group[0], len(group)
+        directory = self.directory
+        directory.update_free_list(first_section=first_section, length=length)
+        self.write_directory(directory)
 
     @staticmethod
     def create_partition_from_bytes(

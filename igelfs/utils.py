@@ -3,10 +3,11 @@
 import abc
 import contextlib
 import io
+import itertools
 import subprocess
 import tarfile
 import tempfile
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from types import TracebackType
 from typing import Any
 
@@ -57,6 +58,16 @@ def run_process(*args, **kwargs) -> str:
         .stdout.strip()
         .decode()
     )
+
+
+def get_consecutive_values(values: Iterable[int]) -> list[list[int]]:
+    """Return groups of consecutive values from list."""
+    return [
+        [value[1] for value in group]
+        for _, group in itertools.groupby(
+            enumerate(values), lambda element: element[0] - element[1]
+        )
+    ]
 
 
 @contextlib.contextmanager
