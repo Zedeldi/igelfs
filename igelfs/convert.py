@@ -1,5 +1,6 @@
 """Module to assist converting IGEL Filesystem to other formats."""
 
+import logging
 import os
 from pathlib import Path
 
@@ -9,6 +10,8 @@ from igelfs.device import Losetup, get_partitions
 from igelfs.filesystem import Filesystem
 from igelfs.lxos import LXOSParser
 from igelfs.models import Section
+
+logger = logging.getLogger(__name__)
 
 
 class Disk:
@@ -39,6 +42,7 @@ class Disk:
 
         Partitions are ordered by partition minor.
         """
+        logger.info(f"Initialising GPT partition table in '{self.path}'")
         device = parted.getDevice(self.path.as_posix())
         disk = parted.freshDisk(device, "gpt")
         for partition_minor in sorted(filesystem.partition_minors_by_directory):
@@ -51,6 +55,7 @@ class Disk:
             partition = parted.Partition(
                 disk=disk, type=parted.PARTITION_NORMAL, geometry=geometry
             )
+            logger.debug(f"Adding partition at {start} of length {length} sectors")
             disk.addPartition(
                 partition=partition, constraint=device.optimalAlignedConstraint
             )
@@ -69,6 +74,7 @@ class Disk:
             ):
                 sections = filesystem.find_sections_by_directory(partition_minor)
                 payload = Section.get_payload_of(sections)
+                logger.info(f"Writing partition {partition_minor} to {partition.path}")
                 with open(partition.path, "wb") as fd:
                     fd.write(payload)
 

@@ -1,6 +1,7 @@
 """Data models for extent filesystem structures."""
 
 import hashlib
+import logging
 import os
 import tarfile
 from dataclasses import dataclass, field
@@ -23,6 +24,8 @@ else:
     _CRYPTO_AVAILABLE = True
 from igelfs.models.base import BaseDataModel, DataModelMetadata
 from igelfs.utils import tarfile_from_bytes
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -93,12 +96,14 @@ class ExtentFilesystem(BaseDataModel):
     @staticmethod
     def extract(data: bytes, path: str | os.PathLike, *args, **kwargs) -> None:
         """Extract tar archive in data to path."""
+        logger.debug(f"Extracting tar archive to '{path}'")
         with tarfile_from_bytes(data) as tar:
             tar.extractall(path, *args, **kwargs)
 
     @staticmethod
     def extract_file(data: bytes, member: str | tarfile.TarInfo) -> bytes:
         """Extract member from tar archive in data as bytes."""
+        logger.debug(f"Extracting '{member}' from tar archive")
         with tarfile_from_bytes(data) as tar:
             file = tar.extractfile(member)
             if not file:
