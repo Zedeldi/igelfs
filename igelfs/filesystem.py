@@ -147,9 +147,12 @@ class Filesystem:
         # Directory does not fill rest of section #0
         # Pad out with null bytes
         directory_padding = bytes(DIR_SIZE - directory.get_actual_size())
-        sections = [bytes(IGF_SECTION_SIZE) for _ in range(size)]
+        # Use generator to prevent consuming large amounts of RAM
+        sections = (bytes(IGF_SECTION_SIZE) for _ in range(size))
         with open(path, "wb") as fd:
-            for data in (boot_registry, directory, directory_padding, *sections):
+            for data in itertools.chain(
+                (boot_registry, directory, directory_padding), sections
+            ):
                 if isinstance(data, bytes):
                     fd.write(data)
                 elif isinstance(data, BaseDataModel):
