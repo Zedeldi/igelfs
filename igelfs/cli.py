@@ -130,7 +130,7 @@ def get_parser() -> ArgumentParser:
     parser.add_argument("--inf", help="path to lxos.inf configuration file")
     parser.add_argument(
         "-l",
-        "--loglevel",
+        "--log-level",
         default=logging.WARNING,
         choices=logging.getLevelNamesMapping().keys(),
         type=str.upper,
@@ -158,7 +158,7 @@ def main() -> None:
     args = parser.parse_args()
     check_args(args)
     logging.basicConfig(
-        format="%(asctime)s | [%(levelname)s] %(message)s", level=args.loglevel
+        format="%(asctime)s | [%(levelname)s] %(message)s", level=args.log_level
     )
 
     filesystem = Filesystem(args.path)
