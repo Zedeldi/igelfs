@@ -19,7 +19,7 @@ from igelfs.constants import (
     PartitionType,
     SectionSize,
 )
-from igelfs.lxos import LXOSParser
+from igelfs.lxos import FirmwareUpdate, LXOSParser
 from igelfs.models import (
     BootRegistryHeader,
     BootRegistryHeaderFactory,
@@ -221,9 +221,7 @@ class Filesystem:
             for offset, section in enumerate(sections)
         )
 
-    def write_sections_to_unused(
-        self, sections: DataModelCollection[Section], update_directory: bool = True
-    ) -> int:
+    def write_sections_to_unused(self, sections: DataModelCollection[Section]) -> int:
         """
         Write collection of sections to unused space, according to free list.
 
@@ -237,12 +235,11 @@ class Filesystem:
                 f"Length of sections '{len(sections)}' is greater than free space '{free_list.length}'"
             )
         self.write_sections_at_index(sections, first_section)
-        if update_directory:
-            directory.update_free_list(
-                first_section=first_section + len(sections),
-                length=free_list.length - len(sections),
-            )
-            self.write_directory(directory)
+        directory.update_free_list(
+            first_section=first_section + len(sections),
+            length=free_list.length - len(sections),
+        )
+        self.write_directory(directory)
         return first_section
 
     def write_partition(
@@ -250,6 +247,8 @@ class Filesystem:
     ) -> None:
         """Write sections to unused space and create directory entry."""
         sections = copy.deepcopy(sections)
+        if len(sections) > self.directory.free_list.length:
+            self.update_free_list()
         first_section = self.directory.free_list.first_section
         for index, section in enumerate(sections):
             section.header.partition_minor = partition_minor
@@ -334,6 +333,17 @@ class Filesystem:
         directory = self.directory
         directory.update_free_list(first_section=first_section, length=length)
         self.write_directory(directory)
+
+    def update(self, firmware: FirmwareUpdate) -> None:
+        """Update filesystem partitions with firmware."""
+        for partition_minor, data in firmware.get_partitions():
+            try:
+                self.delete_partition(partition_minor)
+            except ValueError:
+                # Partition not found
+                pass
+            sections = Section.from_bytes_to_collection(data)
+            self.write_partition(sections, partition_minor)
 
     @staticmethod
     def create_partition_from_bytes(

@@ -2,8 +2,13 @@
 
 import configparser
 import os
+import tempfile
+import zipfile
 from collections import OrderedDict
+from collections.abc import Generator
 from typing import Any
+
+from igelfs.utils import tempfile_from_bytes
 
 
 class MultiDict(OrderedDict):
@@ -45,6 +50,13 @@ class LXOSParser(configparser.ConfigParser):
         value = super().get(*args, **kwargs)
         return value.strip('"')
 
+    def get_partition_minors_to_names(self) -> dict[int, str]:
+        """Return dictionary of mapping of partition minors to names."""
+        return {
+            self.getint(partition, "number"): self.get(partition, "name")
+            for partition in self.partitions
+        }
+
     def find_partition_by_values(self, values: dict[str, str]) -> str | None:
         """Search for partition with matching values."""
         for partition in self.partitions:
@@ -68,3 +80,50 @@ class LXOSParser(configparser.ConfigParser):
             if self.getint(key, "number") == partition_minor:
                 return self.get(key, "name")
         return None
+
+
+class FirmwareUpdate:
+    """Class to manage firmware update archives."""
+
+    def __init__(self, path: str | os.PathLike) -> None:
+        """Initialise instance."""
+        self.path = path
+
+    @property
+    def data(self) -> bytes:
+        """Return bytes for update archive."""
+        with open(self.path, "rb") as file:
+            return file.read()
+
+    def find_member(self, name: str) -> bytes:
+        """Find member in archive and return extracted bytes."""
+        for prefix in ("lxos", "osiv"):
+            try:
+                return self.extract_member(f"{prefix}.{name}")
+            except KeyError:
+                continue
+        raise KeyError(f"Member with name '{name}' not found in '{self.path}'")
+
+    def extract_member(self, member: str | zipfile.ZipInfo) -> bytes:
+        """Extract member from archive and return bytes."""
+        with tempfile.TemporaryDirectory() as path:
+            with zipfile.ZipFile(self.path, "r") as zip:
+                extracted = zip.extract(member, path=path)
+                with open(extracted, "rb") as file:
+                    return file.read()
+
+    def extract_all(self, path: str | os.PathLike) -> None:
+        """Extract archive to path."""
+        with zipfile.ZipFile(self.path, "r") as zip:
+            zip.extractall(path)
+
+    def get_partitions(self) -> Generator[tuple[int, bytes]]:
+        """Return generator of tuples for partition minor to bytes."""
+        data = self.find_member("inf")
+        with tempfile_from_bytes(data) as path:
+            config = LXOSParser(path)
+            for partition_minor, name in config.get_partition_minors_to_names().items():
+                try:
+                    yield (partition_minor, self.find_member(name))
+                except KeyError:
+                    continue

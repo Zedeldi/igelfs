@@ -7,7 +7,7 @@ from pprint import pprint
 from typing import Any
 
 from igelfs.filesystem import Filesystem
-from igelfs.lxos import LXOSParser
+from igelfs.lxos import FirmwareUpdate, LXOSParser
 from igelfs.registry import Registry
 
 try:
@@ -103,10 +103,15 @@ def get_parser() -> ArgumentParser:
         "--hex", "-H", action="store_true", help="output key as hexadecimal"
     )
     parser_keys.add_argument("--output", "-o", help="write key to file")
+    parser_update = subparsers.add_parser(
+        "update", help="update filesystem with firmware archive"
+    )
+    parser_update.add_argument("firmware", help="path to firmware archive")
     parser_rebuild = subparsers.add_parser(
         "rebuild", help="rebuild filesystem to new image"
     )
     parser_rebuild.add_argument("output", help="path to write rebuilt filesystem")
+    subparsers.add_parser("clean", help="clean unused sections in filesystem")
     parser_extract = subparsers.add_parser(
         "extract", help="dump all filesystem content"
     )
@@ -205,8 +210,13 @@ def main() -> None:
                 with open(path, "wb") as file:
                     file.write(key)
             print(key.hex() if args.hex else key)
+        case "update":
+            firmware = FirmwareUpdate(args.firmware)
+            filesystem.update(firmware)
         case "rebuild":
             filesystem.rebuild(args.output)
+        case "clean":
+            filesystem.clean()
         case "extract":
             partition_minors: list[int] = []
             if args.partitions:
