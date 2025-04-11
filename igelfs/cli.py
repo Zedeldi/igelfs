@@ -1,6 +1,7 @@
 """Command-line interface for IGEL filesystem operations."""
 
 import json
+import logging
 import sys
 from argparse import ArgumentParser, Namespace
 from pprint import pprint
@@ -127,6 +128,14 @@ def get_parser() -> ArgumentParser:
     parser_convert.add_argument("output", help="path to write GPT disk")
 
     parser.add_argument("--inf", help="path to lxos.inf configuration file")
+    parser.add_argument(
+        "-l",
+        "--loglevel",
+        default=logging.WARNING,
+        choices=logging.getLevelNamesMapping().keys(),
+        type=str.upper,
+        help="Set log level",
+    )
     parser.add_argument("path", help="path to the IGEL filesystem image")
     return parser
 
@@ -148,6 +157,10 @@ def main() -> None:
     parser = get_parser()
     args = parser.parse_args()
     check_args(args)
+    logging.basicConfig(
+        format="%(asctime)s | [%(levelname)s] %(message)s", level=args.loglevel
+    )
+
     filesystem = Filesystem(args.path)
     lxos_config = LXOSParser(args.inf) if args.inf else None
     match args.command:

@@ -2,6 +2,7 @@
 
 import copy
 import itertools
+import logging
 import math
 import os
 from collections.abc import Iterable, Iterator
@@ -33,6 +34,8 @@ from igelfs.models import (
 )
 from igelfs.models.base import BaseDataModel
 from igelfs.utils import get_consecutive_values, get_section_of, get_start_of_section
+
+logger = logging.getLogger(__name__)
 
 
 class Filesystem:
@@ -169,12 +172,14 @@ class Filesystem:
         """Write bytes to specified offset, returning number of written bytes."""
         if offset > self.size:
             raise ValueError("Offset is greater than image size")
+        logger.debug(f"Writing {len(data)} bytes at {offset}")
         with open(self.path, "r+b") as fd:
             fd.seek(offset)
             return fd.write(data)
 
     def _write_model(self, model: BaseDataModel, offset: int) -> int:
         """Write data model to offset, returning number of written bytes."""
+        logger.debug(f"Writing model {model.__class__.__name__} at {offset}")
         return self.write_bytes(model.to_bytes(), offset)
 
     def write_boot_registry(
@@ -206,6 +211,7 @@ class Filesystem:
             )
         index = self._get_section_index(index)
         offset = get_start_of_section(index)
+        logger.debug(f"Writing section to index {index}")
         return self._write_model(section, offset)
 
     def write_sections_at_index(
@@ -259,6 +265,7 @@ class Filesystem:
         sections[-1].header.next_section = SECTION_END_OF_CHAIN
         for section in sections:
             section.update_crc()
+        logger.info(f"Writing partition {partition_minor} ({len(sections)} sections)")
         self.write_sections_to_unused(sections)
         directory = self.directory
         directory.create_entry(partition_minor, first_section, len(sections))
@@ -270,6 +277,7 @@ class Filesystem:
 
         Return number of written bytes.
         """
+        logger.debug(f"Deleting section at index {index}")
         data = bytes(IGF_SECTION_SIZE)
         index = self._get_section_index(index)
         offset = get_start_of_section(index)
@@ -280,6 +288,7 @@ class Filesystem:
         indexes = self.get_section_indexes_for_partition_minor(partition_minor)
         if not indexes:
             raise ValueError(f"Partition minor {partition_minor} not found")
+        logger.info(f"Deleting partition {partition_minor}")
         for index in indexes:
             self.delete_section_at_index(index)
         directory = self.directory
@@ -330,6 +339,9 @@ class Filesystem:
         else:
             group = indexes[0]
         first_section, length = group[0], len(group)
+        logger.debug(
+            f"Updating directory free list to first section {first_section} of length {length}"
+        )
         directory = self.directory
         directory.update_free_list(first_section=first_section, length=length)
         self.write_directory(directory)
@@ -337,6 +349,7 @@ class Filesystem:
     def update(self, firmware: FirmwareUpdate) -> None:
         """Update filesystem partitions with firmware."""
         for partition_minor, data in firmware.get_partitions():
+            logger.info(f"Updating partition {partition_minor} ({len(data)} bytes)")
             try:
                 self.delete_partition(partition_minor)
             except ValueError:
@@ -472,12 +485,18 @@ class Filesystem:
             if lxos_config:
                 name += f".{lxos_config.find_name_by_partition_minor(partition_minor)}"
             payload = Section.get_payload_of(sections)
+            logger.info(f"Extracting partition {partition_minor} to '{path / name}'")
             with open(path / name, "wb") as fd:
                 fd.write(payload)
             if partition:
                 for index, extent in enumerate(partition.extents):
+                    extent_name = f"{name}.{index}.{extent.get_name()}"
                     payload = Section.get_extent_of(sections, extent)
-                    with open(path / f"{name}.{index}.{extent.get_name()}", "wb") as fd:
+                    logger.info(
+                        f"Extracting partition extent '{extent.get_name()}' of "
+                        f"partition {partition_minor} to '{path / extent_name}'"
+                    )
+                    with open(path / extent_name, "wb") as fd:
                         fd.write(payload)
 
     def get_info(self, lxos_config: LXOSParser | None = None) -> dict[str, Any]:

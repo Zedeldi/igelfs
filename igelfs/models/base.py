@@ -1,6 +1,7 @@
 """Concrete base classes for various data models."""
 
 import io
+import logging
 from collections.abc import Iterator, Mapping
 from dataclasses import Field, dataclass
 from typing import Any, get_args, get_origin
@@ -9,6 +10,8 @@ from igelfs.models.abc import BaseBytesModel
 from igelfs.models.collections import DataModelCollection
 from igelfs.models.mixins import DataclassMixin
 from igelfs.utils import replace_bytes
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -158,6 +161,7 @@ class BaseDataModel[T: BaseDataModel](BaseBytesModel, DataclassMixin):
     @classmethod
     def from_bytes(cls: type[T], data: bytes) -> T:
         """Return data model instance from bytes."""
+        logger.debug(f"Creating model {cls.__name__} from {len(data)} bytes")
         model = cls.from_bytes_to_dict(data)
         for field in cls.get_fields(init_only=True):
             model[field.name] = cls.from_field(model[field.name], field)

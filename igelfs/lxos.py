@@ -1,6 +1,7 @@
 """Module to assist handling LXOS firmware update files."""
 
 import configparser
+import logging
 import os
 import tempfile
 import zipfile
@@ -9,6 +10,8 @@ from collections.abc import Generator
 from typing import Any
 
 from igelfs.utils import tempfile_from_bytes
+
+logger = logging.getLogger(__name__)
 
 
 class MultiDict(OrderedDict):
@@ -38,6 +41,7 @@ class LXOSParser(configparser.ConfigParser):
             **kwargs,
         )  # type: ignore[call-overload]
         if path:
+            logger.debug(f"Parsing configuration file '{path}'")
             self.read(path)
 
     @property
@@ -97,6 +101,7 @@ class FirmwareUpdate:
 
     def find_member(self, name: str) -> bytes:
         """Find member in archive and return extracted bytes."""
+        logger.debug(f"Finding '{name}' in '{self.path}'")
         for prefix in ("lxos", "osiv"):
             try:
                 return self.extract_member(f"{prefix}.{name}")
@@ -106,6 +111,7 @@ class FirmwareUpdate:
 
     def extract_member(self, member: str | zipfile.ZipInfo) -> bytes:
         """Extract member from archive and return bytes."""
+        logger.debug(f"Extracting '{member}' from '{self.path}'")
         with tempfile.TemporaryDirectory() as path:
             with zipfile.ZipFile(self.path, "r") as zip:
                 extracted = zip.extract(member, path=path)
@@ -114,6 +120,7 @@ class FirmwareUpdate:
 
     def extract_all(self, path: str | os.PathLike) -> None:
         """Extract archive to path."""
+        logger.debug(f"Extracting '{self.path}' to '{path}'")
         with zipfile.ZipFile(self.path, "r") as zip:
             zip.extractall(path)
 

@@ -11,6 +11,7 @@ they can be used as standalone helper classes with static methods.
 """
 
 import contextlib
+import logging
 import os
 import re
 import subprocess
@@ -21,6 +22,8 @@ from dataclasses import dataclass
 from glob import glob
 
 from igelfs.utils import BaseContext, run_process
+
+logger = logging.getLogger(__name__)
 
 
 class Cryptsetup(BaseContext):
@@ -40,6 +43,9 @@ class Cryptsetup(BaseContext):
         path: str | os.PathLike, name: str, keyfile: str | os.PathLike
     ) -> None:
         """Open LUKS container with specified name and keyfile."""
+        logger.debug(
+            f"Opening LUKS container at '{path}' with name '{name}' and keyfile '{keyfile}'"
+        )
         run_process(
             [
                 "cryptsetup",
@@ -55,6 +61,9 @@ class Cryptsetup(BaseContext):
         path: str | os.PathLike, name: str, keyfile: str | os.PathLike
     ) -> None:
         """Open plain encrypted file at path with specified name and keyfile."""
+        logger.debug(
+            f"Opening encrypted container at '{path}' with name '{name}' and keyfile '{keyfile}'"
+        )
         run_process(
             [
                 "cryptsetup",
@@ -120,11 +129,13 @@ class Losetup(BaseContext):
     @staticmethod
     def attach(path: str | os.PathLike) -> str:
         """Attach specified path as loop device, returning device path."""
+        logger.debug(f"Attaching '{path}' as loop device")
         return run_process(["losetup", "--partscan", "--find", "--show", path])
 
     @staticmethod
     def detach(path: str | os.PathLike) -> None:
         """Detach specified loop device."""
+        logger.debug(f"Detaching loop device '{path}'")
         run_process(["losetup", "--detach", path])
 
     @classmethod
@@ -144,11 +155,13 @@ class Mount(BaseContext):
     @staticmethod
     def mount(path: str | os.PathLike, mountpoint: str | os.PathLike) -> None:
         """Mount specified path at mountpoint."""
+        logger.debug(f"Mounting '{path}' to '{mountpoint}'")
         run_process(["mount", path, mountpoint])
 
     @staticmethod
     def unmount(mountpoint: str | os.PathLike) -> None:
         """Unmount device mounted at mountpoint."""
+        logger.debug(f"Unmounting '{mountpoint}'")
         run_process(["umount", mountpoint])
 
     @classmethod
