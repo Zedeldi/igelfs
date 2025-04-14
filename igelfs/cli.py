@@ -9,6 +9,7 @@ from typing import Any
 
 from igelfs.filesystem import Filesystem
 from igelfs.lxos import FirmwareUpdate, LXOSParser
+from igelfs.models import Section
 from igelfs.registry import Registry
 
 try:
@@ -56,6 +57,12 @@ def get_parser() -> ArgumentParser:
     parser_add.add_argument("input", help="path to file for partition")
     parser_add.add_argument("minor", type=int, help="partition minor")
     parser_add.add_argument("--type", "-t", type=int, help="partition type")
+    parser_add.add_argument(
+        "--as-partition",
+        "-p",
+        action="store_true",
+        help="use file as a partition directly",
+    )
     parser_remove = subparsers.add_parser(
         "remove", help="remove partition from filesystem"
     )
@@ -150,10 +157,13 @@ def check_args(args: Namespace) -> None:
     if args.command == "registry" and args.decrypt and not args.key:
         print("Key must be set when decrypting registry value")
         sys.exit(1)
+    if args.command == "add" and args.type and args.as_partition:
+        print("Type has no effect when file is used as partition")
+        sys.exit(1)
 
 
 def main() -> None:
-    """Parse arguments and print filesystem information."""
+    """Parse arguments and perform specified command."""
     parser = get_parser()
     args = parser.parse_args()
     check_args(args)
@@ -167,10 +177,15 @@ def main() -> None:
         case "new":
             Filesystem.new(args.path, args.size)
         case "add":
-            opts = {}
-            if args.type:
-                opts["type_"] = args.type
-            sections = Filesystem.create_partition_from_file(args.input, **opts)
+            if args.as_partition:
+                with open(args.input, "rb") as file:
+                    data = file.read()
+                sections = Section.from_bytes_to_collection(data)
+            else:
+                opts = {}
+                if args.type:
+                    opts["type_"] = args.type
+                sections = Filesystem.create_partition_from_file(args.input, **opts)
             filesystem.write_partition(sections, args.minor)
         case "remove":
             filesystem.delete_partition(args.minor)
