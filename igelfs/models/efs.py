@@ -39,7 +39,7 @@ class ExtentFilesystem(BaseDataModel):
     The decrypted data is an LZF-compressed tar archive.
     """
 
-    LZF_DECOMPRESS_SIZE: ClassVar[int] = 4096
+    LZF_DECOMPRESS_SIZE: ClassVar[int] = 10240
 
     magic: str = field(  # EXTENTFS_MAGIC
         metadata=DataModelMetadata(size=4, default=EXTENTFS_MAGIC)
