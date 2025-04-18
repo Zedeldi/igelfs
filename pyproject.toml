@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "igelfs"
 description = "Python implementation of the IGEL filesystem."
-version = "2.10.1"
+version = "2.10.2"
 readme = "README.md"
 license = "GPL-3.0-only"
 authors = [
@@ -23,7 +23,7 @@ requires-python = ">= 3.12"
 
 [project.optional-dependencies]
 convert = ["pyparted"]
-efs = ["cryptography", "PyNaCl", "python-lzf"]
+crypto = ["cryptography", "PyNaCl", "python-lzf"]
 tests = ["pytest"]
 
 [project.urls]
