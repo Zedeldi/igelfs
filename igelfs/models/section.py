@@ -318,6 +318,7 @@ class Section(BaseDataModel, CRCMixin):
             "payload": {
                 "size": len(payload),
                 "type": magic.from_buffer(payload),
+                "mime": magic.from_buffer(payload, mime=True),
             },
             "verify": {
                 "checksum": all(section.verify() for section in sections),
@@ -342,6 +343,7 @@ class Section(BaseDataModel, CRCMixin):
                 extent_info = {
                     "name": extent.get_name(),
                     "type": magic.from_buffer(extent_payload),
+                    "mime": magic.from_buffer(extent_payload, mime=True),
                     "size": len(extent_payload),
                 }
                 info["extents"].append(extent_info)
