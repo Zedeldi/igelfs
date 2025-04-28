@@ -33,7 +33,12 @@ from igelfs.models import (
     SectionHeader,
 )
 from igelfs.models.base import BaseDataModel
-from igelfs.utils import get_consecutive_values, get_section_of, get_start_of_section
+from igelfs.utils import (
+    get_consecutive_values,
+    get_section_of,
+    get_start_of_section,
+    guess_extension,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -475,32 +480,56 @@ class Filesystem:
         partition_minors: Iterable[int] | None = None,
         lxos_config: LXOSParser | None = None,
     ) -> None:
-        """Extract all partitions and extents to path."""
+        """
+        Extract all partitions and extents to path.
+
+        Each partition will be extracted to its own directory, with partition
+        extents extracted to a subdirectory.
+
+        File extensions are guessed by MIME type.
+
+        If lxos_config is specified, partition directories will be named accordingly.
+        """
         path = Path(path).resolve()
-        if not path.exists():
-            path.mkdir(exist_ok=True)
+        path.mkdir(exist_ok=True)
         for partition_minor in self.partition_minors_by_directory:
             if partition_minors and partition_minor not in partition_minors:
                 continue
             sections = self.find_sections_by_directory(partition_minor)
             partition = sections[0].partition
-            name = f"{partition_minor}"
-            if lxos_config:
-                name += f".{lxos_config.find_name_by_partition_minor(partition_minor)}"
             payload = Section.get_payload_of(sections)
-            logger.info(f"Extracting partition {partition_minor} to '{path / name}'")
-            with open(path / name, "wb") as fd:
-                fd.write(payload)
-            if partition:
+            partition_name = (
+                (
+                    lxos_config
+                    and lxos_config.find_name_by_partition_minor(partition_minor)
+                )
+                or (partition and partition.header.get_name())
+                or f"{partition_minor}"
+            )
+            partition_path = path / partition_name
+            payload_path = partition_path / f"payload{guess_extension(payload)}"
+            logger.info(f"Extracting partition {partition_minor} to '{payload_path}'")
+            self._extract_write(payload_path, payload)
+            if partition and partition.extents:
+                extents_path = partition_path / "extents"
                 for index, extent in enumerate(partition.extents):
-                    extent_name = f"{name}.{index}.{extent.get_name()}"
                     payload = Section.get_extent_of(sections, extent)
-                    logger.info(
-                        f"Extracting partition extent '{extent.get_name()}' of "
-                        f"partition {partition_minor} to '{path / extent_name}'"
+                    extent_name = f"{extent.get_name() or index}"
+                    extent_path = (
+                        extents_path / f"{extent_name}{guess_extension(payload)}"
                     )
-                    with open(path / extent_name, "wb") as fd:
-                        fd.write(payload)
+                    logger.info(
+                        f"Extracting partition extent '{extent_name}' of "
+                        f"partition {partition_minor} to '{extent_path}'"
+                    )
+                    self._extract_write(extent_path, payload)
+
+    @staticmethod
+    def _extract_write(path: Path, data: bytes) -> int:
+        """Write data to path and return number of written bytes."""
+        path.parent.mkdir(exist_ok=True)
+        with open(path, "wb") as fd:
+            return fd.write(data)
 
     def get_info(self, lxos_config: LXOSParser | None = None) -> dict[str, Any]:
         """Return information about filesystem."""

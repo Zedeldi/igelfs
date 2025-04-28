@@ -4,12 +4,15 @@ import abc
 import contextlib
 import io
 import itertools
+import mimetypes
 import subprocess
 import tarfile
 import tempfile
 from collections.abc import Generator, Iterable
 from types import TracebackType
 from typing import Any
+
+import magic
 
 from igelfs.constants import IGF_SECTION_SHIFT, IGF_SECTION_SIZE
 
@@ -68,6 +71,23 @@ def get_consecutive_values(values: Iterable[int]) -> list[list[int]]:
             enumerate(values), lambda element: element[0] - element[1]
         )
     ]
+
+
+def guess_extension(
+    data: bytes,
+    strict: bool = False,
+    default: str = ".bin",
+    mapping: dict[str, str] = {"Squashfs": ".squashfs"},
+) -> str:
+    """Guess extension for bytes."""
+    description = magic.from_buffer(data)
+    for key, value in mapping.items():
+        if key in description:
+            return value
+    return (
+        mimetypes.guess_extension(magic.from_buffer(data, mime=True), strict=strict)
+        or default
+    )
 
 
 @contextlib.contextmanager
