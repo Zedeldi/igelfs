@@ -5,10 +5,12 @@ import contextlib
 import io
 import itertools
 import mimetypes
+import os
 import subprocess
 import tarfile
 import tempfile
 from collections.abc import Generator, Iterable
+from pathlib import Path
 from types import TracebackType
 from typing import Any
 
@@ -30,6 +32,15 @@ def get_section_of(offset: int) -> int:
 def get_offset_of(offset: int) -> int:
     """Return offset relative to start of section for specified offset."""
     return offset & (IGF_SECTION_SIZE - 1)
+
+
+def get_size_of(path: str | os.PathLike) -> int:
+    """Return size of path."""
+    path = Path(path)
+    if path.is_block_device():
+        with open(path, "rb") as fd:
+            return fd.seek(0, os.SEEK_END)
+    return path.stat().st_size
 
 
 def replace_bytes(

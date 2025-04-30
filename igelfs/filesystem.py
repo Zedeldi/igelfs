@@ -36,6 +36,7 @@ from igelfs.models.base import BaseDataModel
 from igelfs.utils import (
     get_consecutive_values,
     get_section_of,
+    get_size_of,
     get_start_of_section,
     guess_extension,
 )
@@ -78,10 +79,7 @@ class Filesystem:
     @property
     def size(self) -> int:
         """Return size of image."""
-        if self.path.is_block_device():
-            with open(self.path, "rb") as fd:
-                return fd.seek(0, os.SEEK_END)
-        return self.path.stat().st_size
+        return get_size_of(self.path)
 
     @property
     def section_size(self) -> SectionSize:
