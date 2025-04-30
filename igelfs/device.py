@@ -20,6 +20,7 @@ import uuid
 from collections.abc import Generator
 from dataclasses import dataclass
 from glob import glob
+from pathlib import Path
 
 from igelfs.utils import BaseContext, run_process
 
@@ -192,6 +193,17 @@ class PartitionDescriptor:
     path: str
     index: int
     device: str | os.PathLike
+
+
+def get_parent_device(
+    path: str | os.PathLike, prefix: str | os.PathLike = "/dev"
+) -> Path:
+    """Return path to parent device from path."""
+    path = Path(path)
+    if not path.is_block_device():
+        raise ValueError(f"Path '{path}' is not a block device")
+    device = Path("/sys/class/block/") / path.name
+    return Path(prefix) / device.resolve().parent.name
 
 
 def get_partition_index(path: str | os.PathLike, partition: str) -> int | None:

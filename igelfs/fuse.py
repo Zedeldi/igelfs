@@ -8,15 +8,19 @@ import errno
 import itertools
 import os
 import stat
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from functools import cached_property
+from pathlib import Path
 from typing import ClassVar
 
 import fuse
 from fuse import Fuse
 
+from igelfs.device import get_parent_device
 from igelfs.filesystem import Filesystem
+from igelfs.utils import get_size_of
 
 if not hasattr(fuse, "__version__"):
     raise RuntimeError("fuse.__version__ is undefined")
@@ -25,7 +29,26 @@ fuse.fuse_python_api = (0, 2)
 
 
 @dataclass
-class PartitionDescriptor:
+class Entry(ABC):
+    """Abstract dataclass for entries."""
+
+    name: str
+
+    @property
+    @abstractmethod
+    def data(self) -> bytes:
+        """Return data for entry."""
+        ...
+
+    @property
+    @abstractmethod
+    def size(self) -> int:
+        """Return size of data for entry."""
+        ...
+
+
+@dataclass
+class PartitionDescriptor(Entry):
     """Dataclass to store partition information and methods."""
 
     name: str
@@ -41,6 +64,25 @@ class PartitionDescriptor:
     def size(self) -> int:
         """Return size of data for partition."""
         return len(self.data)
+
+
+@dataclass
+class PathDescriptor(Entry):
+    """Dataclass to handle path information and methods."""
+
+    name: str
+    path: Path
+
+    @property
+    def data(self) -> bytes:
+        """Return data as bytes from path."""
+        with open(self.path, "rb") as file:
+            return file.read()
+
+    @cached_property
+    def size(self) -> int:
+        """Return size of data for partition."""
+        return get_size_of(self.path)
 
 
 class IgfFuse(Fuse):
@@ -60,7 +102,36 @@ class IgfFuse(Fuse):
         return inner
 
     @cached_property
-    def _partition_entries(self) -> tuple[PartitionDescriptor, ...]:
+    def _special_entries(self) -> tuple[Entry, ...]:
+        """
+        Return tuple of special entries.
+
+        - boot: path to disk containing filesystem, e.g. sda
+        - disk: path to filesystem, e.g. sda1
+        - 0: synonym for disk/filesystem (as above), e.g. sda1
+        - sys: system partition, e.g. igf1
+        """
+        return (
+            PathDescriptor(
+                name=f"{self._DIRENTRY_PREFIX}boot",
+                path=(
+                    get_parent_device(path)
+                    if (path := self.filesystem.path).is_block_device()
+                    else path
+                ),
+            ),
+            PathDescriptor(
+                name=f"{self._DIRENTRY_PREFIX}disk", path=self.filesystem.path
+            ),
+            PathDescriptor(name=f"{self._DIRENTRY_PREFIX}0", path=self.filesystem.path),
+            PartitionDescriptor(
+                name=f"{self._DIRENTRY_PREFIX}sys",
+                function=self._get_partition_function(1),
+            ),
+        )
+
+    @cached_property
+    def _partition_entries(self) -> tuple[Entry, ...]:
         """Return tuple of partition entries."""
         return tuple(
             PartitionDescriptor(
@@ -70,38 +141,40 @@ class IgfFuse(Fuse):
             for partition_minor in self.filesystem.partition_minors_by_directory
         )
 
+    @cached_property
+    def _entries(self) -> tuple[Entry, ...]:
+        """Return tuple of all entries."""
+        return self._special_entries + self._partition_entries
+
     @property
-    def _partition_names(self) -> Generator[str]:
-        """Return tuple of partition names."""
-        for partition in self._partition_entries:
-            yield partition.name
+    def _entry_names(self) -> Generator[str]:
+        """Return generator of entry names."""
+        for entry in self._entries:
+            yield entry.name
 
     def getattr(self, path: str) -> fuse.Stat:
         """Get attributes for path."""
         st = fuse.Stat()
         if path == "/":
             st.st_mode = stat.S_IFDIR | 0o755
-            st.st_nlink = 1 + len(self._partition_entries)
+            st.st_nlink = 1 + len(self._entries)
             return st
-        for partition in self._partition_entries:
-            if path.removeprefix("/") == partition.name:
+        for entry in self._entries:
+            if path.removeprefix("/") == entry.name:
                 st.st_mode = stat.S_IFREG | self._FILE_MODE
                 st.st_nlink = 1
-                st.st_size = partition.size
+                st.st_size = entry.size
                 return st
         return -errno.ENOENT
 
     def readdir(self, path: str, offset: int) -> Generator[fuse.Direntry]:
         """List directory entries."""
-        for entry in itertools.chain(
-            (".", ".."),
-            (partition.name for partition in self._partition_entries),
-        ):
+        for entry in itertools.chain((".", ".."), self._entry_names):
             yield fuse.Direntry(entry)
 
     def open(self, path: str, flags: int) -> int:
         """Open path and return flags."""
-        if path.removeprefix("/") not in self._partition_names:
+        if path.removeprefix("/") not in self._entry_names:
             return -errno.ENOENT
         accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
         if (flags & accmode) != os.O_RDONLY:
@@ -110,15 +183,15 @@ class IgfFuse(Fuse):
 
     def read(self, path: str, size: int, offset: int) -> bytes | int:
         """Read path and return bytes."""
-        for partition in self._partition_entries:
-            if path.removeprefix("/") == partition.name:
-                if offset >= partition.size:
+        for entry in self._entries:
+            if path.removeprefix("/") == entry.name:
+                if offset >= entry.size:
                     # Offset is greater than size, return empty bytes
                     return b""
-                if offset + size > partition.size:
+                if offset + size > entry.size:
                     # Read all data from offset to end
-                    size = partition.size - offset
-                return partition.data[offset : offset + size]
+                    size = entry.size - offset
+                return entry.data[offset : offset + size]
         # File does not exist
         return -errno.ENOENT
 
