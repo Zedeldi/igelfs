@@ -11,6 +11,7 @@ import stat
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
+from enum import StrEnum, auto
 from functools import cached_property
 from pathlib import Path
 from typing import ClassVar
@@ -20,12 +21,20 @@ from fuse import Fuse
 
 from igelfs.device import get_parent_device
 from igelfs.filesystem import Filesystem
+from igelfs.models import Section
 from igelfs.utils import get_size_of
 
 if not hasattr(fuse, "__version__"):
     raise RuntimeError("fuse.__version__ is undefined")
 
 fuse.fuse_python_api = (0, 2)
+
+
+class Mode(StrEnum):
+    """Enumeration for mode of FUSE operation."""
+
+    PAYLOAD = auto()
+    SECTION = auto()
 
 
 @dataclass
@@ -88,16 +97,30 @@ class PathDescriptor(Entry):
 class IgfFuse(Fuse):
     """Class to handle Filesystem as FUSE filesystem."""
 
-    _DIRENTRY_PREFIX: ClassVar[str] = "igf"
     _FILE_MODE: ClassVar[int] = 0o444  # Read-only for all users
+    ENTRY_PREFIX: ClassVar[str] = "igf"
+    DEFAULT_MODE: ClassVar[Mode] = Mode.SECTION
 
-    def _get_partition_function(self, partition_minor: int) -> Callable[[], bytes]:
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialise instance."""
+        super().__init__(*args, **kwargs)
+        self.entry_prefix = self.ENTRY_PREFIX
+        self.mode = self.DEFAULT_MODE
+
+    def _get_partition_function(
+        self, partition_minor: int, mode: Mode
+    ) -> Callable[[], bytes]:
         """Return function to get data for partition from filesystem."""
 
         def inner() -> bytes:
-            return self.filesystem.find_sections_by_directory(
-                partition_minor
-            ).to_bytes()
+            sections = self.filesystem.find_sections_by_directory(partition_minor)
+            match mode:
+                case Mode.SECTION:
+                    return sections.to_bytes()
+                case Mode.PAYLOAD:
+                    return Section.get_payload_of(sections, include_extents=False)
+                case _:
+                    raise ValueError(f"Invalid mode '{mode}'")
 
         return inner
 
@@ -113,20 +136,18 @@ class IgfFuse(Fuse):
         """
         return (
             PathDescriptor(
-                name=f"{self._DIRENTRY_PREFIX}boot",
+                name=f"{self.entry_prefix}boot",
                 path=(
                     get_parent_device(path)
                     if (path := self.filesystem.path).is_block_device()
                     else path
                 ),
             ),
-            PathDescriptor(
-                name=f"{self._DIRENTRY_PREFIX}disk", path=self.filesystem.path
-            ),
-            PathDescriptor(name=f"{self._DIRENTRY_PREFIX}0", path=self.filesystem.path),
+            PathDescriptor(name=f"{self.entry_prefix}disk", path=self.filesystem.path),
+            PathDescriptor(name=f"{self.entry_prefix}0", path=self.filesystem.path),
             PartitionDescriptor(
-                name=f"{self._DIRENTRY_PREFIX}sys",
-                function=self._get_partition_function(1),
+                name=f"{self.entry_prefix}sys",
+                function=self._get_partition_function(1, mode=self.mode),
             ),
         )
 
@@ -135,8 +156,8 @@ class IgfFuse(Fuse):
         """Return tuple of partition entries."""
         return tuple(
             PartitionDescriptor(
-                name=f"{self._DIRENTRY_PREFIX}{partition_minor}",
-                function=self._get_partition_function(partition_minor),
+                name=f"{self.entry_prefix}{partition_minor}",
+                function=self._get_partition_function(partition_minor, mode=self.mode),
             )
             for partition_minor in self.filesystem.partition_minors_by_directory
         )
@@ -197,6 +218,7 @@ class IgfFuse(Fuse):
 
     def main(self, *args, **kwargs) -> None:
         """Parse additional arguments and call main Fuse method."""
+        self.mode = Mode(self.mode)
         try:
             self.filesystem = Filesystem(self.cmdline[1][0])
         except IndexError:
@@ -209,7 +231,19 @@ def main():
     server = IgfFuse(
         version=f"%prog {fuse.__version__}", usage=Fuse.fusage, dash_s_do="setsingle"
     )
-    server.parse(errex=1)
+    server.parser.add_option(
+        mountopt="mode",
+        metavar="MODE",
+        default=server.DEFAULT_MODE,
+        help=f"Mode for reading filesystem: {', '.join(Mode)} [default: %default]",
+    )
+    server.parser.add_option(
+        mountopt="entry_prefix",
+        metavar="PREFIX",
+        default=server.ENTRY_PREFIX,
+        help="Prefix for filesystem entries [default: %default]",
+    )
+    server.parse(values=server, errex=1)
     server.main()
 
 
