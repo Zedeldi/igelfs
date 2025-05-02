@@ -1,5 +1,6 @@
 cffi==1.17.1
 cryptography==44.0.2
+fuse-python==1.0.9
 iniconfig==2.0.0
 packaging==24.1
 pillow==11.0.0
