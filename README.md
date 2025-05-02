@@ -40,10 +40,11 @@ The project page can be found [here](https://pypi.org/project/igelfs/).
 - [rsa](https://pypi.org/project/rsa/) - signature verification
 - [pillow](https://pypi.org/project/pillow/) - bootsplash images
 - [python-magic](https://pypi.org/project/python-magic/) - payload identification
-- [pyparted](https://pypi.org/project/pyparted/) - disk conversion (optional)
 - [cryptography](https://pypi.org/project/cryptography/) - encryption (optional)
 - [PyNaCl](https://pypi.org/project/PyNaCl/) - encryption, bindings to [libsodium](https://github.com/jedisct1/libsodium) (optional)
 - [python-lzf](https://pypi.org/project/python-lzf/) - compression, bindings to liblzf (optional)
+- [fuse-python](https://pypi.org/project/fuse-python/) - FUSE filesystem (optional)
+- [pyparted](https://pypi.org/project/pyparted/) - disk conversion (optional)
 - [pytest](https://pypi.org/project/pytest/) - testing, see [below](#testing)
 
 ## Usage
