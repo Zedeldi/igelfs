@@ -223,7 +223,7 @@ class IgfFuse(Fuse):
             self.filesystem = Filesystem(self.cmdline[1][0])
         except IndexError:
             raise ValueError("Missing underlying filesystem path parameter") from None
-        return Fuse.main(self, *args, **kwargs)
+        return super().main(*args, **kwargs)
 
 
 def main():
