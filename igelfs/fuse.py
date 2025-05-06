@@ -5,6 +5,7 @@ Based on https://github.com/libfuse/python-fuse/blob/master/example/hello.py
 """
 
 import errno
+import functools
 import itertools
 import os
 import stat
@@ -12,7 +13,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from functools import cached_property
 from pathlib import Path
 from typing import ClassVar
 
@@ -69,7 +69,7 @@ class PartitionDescriptor(Entry):
         """Wrap function to return bytes for partition as property."""
         return self.function()
 
-    @cached_property
+    @functools.cached_property
     def size(self) -> int:
         """Return size of data for partition."""
         return len(self.data)
@@ -88,7 +88,7 @@ class PathDescriptor(Entry):
         with open(self.path, "rb") as file:
             return file.read()
 
-    @cached_property
+    @functools.cached_property
     def size(self) -> int:
         """Return size of data for partition."""
         return get_size_of(self.path)
@@ -100,15 +100,17 @@ class IgfFuse(Fuse):
     _FILE_MODE: ClassVar[int] = 0o444  # Read-only for all users
     ENTRY_PREFIX: ClassVar[str] = "igf"
     DEFAULT_MODE: ClassVar[Mode] = Mode.SECTION
+    CACHE_PARTITIONS: ClassVar[bool] = False
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialise instance."""
         super().__init__(*args, **kwargs)
         self.entry_prefix = self.ENTRY_PREFIX
         self.mode = self.DEFAULT_MODE
+        self.cache = self.CACHE_PARTITIONS
 
     def _get_partition_function(
-        self, partition_minor: int, mode: Mode
+        self, partition_minor: int, mode: Mode, cache: bool = False
     ) -> Callable[[], bytes]:
         """Return function to get data for partition from filesystem."""
 
@@ -122,9 +124,11 @@ class IgfFuse(Fuse):
                 case _:
                     raise ValueError(f"Invalid mode '{mode}'")
 
+        if cache:
+            inner = functools.cache(inner)
         return inner
 
-    @cached_property
+    @functools.cached_property
     def _special_entries(self) -> tuple[Entry, ...]:
         """
         Return tuple of special entries.
@@ -147,22 +151,26 @@ class IgfFuse(Fuse):
             PathDescriptor(name=f"{self.entry_prefix}0", path=self.filesystem.path),
             PartitionDescriptor(
                 name=f"{self.entry_prefix}sys",
-                function=self._get_partition_function(1, mode=self.mode),
+                function=self._get_partition_function(
+                    1, mode=self.mode, cache=self.cache
+                ),
             ),
         )
 
-    @cached_property
+    @functools.cached_property
     def _partition_entries(self) -> tuple[Entry, ...]:
         """Return tuple of partition entries."""
         return tuple(
             PartitionDescriptor(
                 name=f"{self.entry_prefix}{partition_minor}",
-                function=self._get_partition_function(partition_minor, mode=self.mode),
+                function=self._get_partition_function(
+                    partition_minor, mode=self.mode, cache=self.cache
+                ),
             )
             for partition_minor in self.filesystem.partition_minors_by_directory
         )
 
-    @cached_property
+    @functools.cached_property
     def _entries(self) -> tuple[Entry, ...]:
         """Return tuple of all entries."""
         return self._special_entries + self._partition_entries
@@ -242,6 +250,12 @@ def main():
         metavar="PREFIX",
         default=server.ENTRY_PREFIX,
         help="Prefix for filesystem entries [default: %default]",
+    )
+    server.parser.add_option(
+        mountopt="cache",
+        action="store_true",
+        default=server.CACHE_PARTITIONS,
+        help="Cache partition data [default: %default]",
     )
     server.parse(values=server, errex=1)
     server.main()
