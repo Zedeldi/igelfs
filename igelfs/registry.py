@@ -3,20 +3,10 @@
 import gzip
 import re
 from collections.abc import Iterable
-from pathlib import Path
 from xml.etree import ElementTree
 
-from igelfs.device import Cryptsetup, Mount
 from igelfs.filesystem import Filesystem
-from igelfs.models import Section
-from igelfs.utils import tempfile_from_bytes
-
-try:
-    from igelfs.kml import Keyring
-except ImportError:
-    _KEYRING_AVAILABLE = False
-else:
-    _KEYRING_AVAILABLE = True
+from igelfs.wfs import WfsPartition
 
 type Primitive = int | float | str | bool | None
 type RecursiveDict[K, V] = dict[K, RecursiveDict[K, V] | V]
@@ -130,7 +120,6 @@ class Registry:
     XOR-based algorithm (see Registry.encrypt and Registry.decrypt).
     """
 
-    WFS_PARTITION_MINOR = 255
     GROUP_FILENAME = "group.ini"
     GROUP_GZ_FILENAME = "group.ini.gz"
     KEY_SEPARATOR = "."
@@ -225,22 +214,11 @@ class Registry:
     @classmethod
     def from_filesystem(cls: type["Registry"], filesystem: Filesystem) -> "Registry":
         """Return Registry instance from filesystem."""
-        if not _KEYRING_AVAILABLE:
-            raise ImportError("Keyring functionality is not available")
-        keyring = Keyring.from_filesystem(filesystem)
-        key = keyring.get_key(cls.WFS_PARTITION_MINOR)
-        data = Section.get_payload_of(
-            filesystem.find_sections_by_directory(cls.WFS_PARTITION_MINOR),
-            include_extents=False,
-        )
-        with tempfile_from_bytes(data) as wfs, tempfile_from_bytes(key) as keyfile:
-            with Cryptsetup(wfs, keyfile) as mapping:
-                with Mount(mapping) as mountpoint:
-                    mountpoint = Path(mountpoint)
-                    if (path := (mountpoint / cls.GROUP_FILENAME)).exists():
-                        with open(path, "rb") as file:
-                            data = file.read()
-                    else:
-                        with open(mountpoint / cls.GROUP_GZ_FILENAME, "rb") as file:
-                            data = gzip.decompress(file.read())
+        with WfsPartition(filesystem) as mountpoint:
+            if (path := (mountpoint / cls.GROUP_FILENAME)).exists():
+                with open(path, "rb") as file:
+                    data = file.read()
+            else:
+                with open(mountpoint / cls.GROUP_GZ_FILENAME, "rb") as file:
+                    data = gzip.decompress(file.read())
         return cls(data=data.decode())
