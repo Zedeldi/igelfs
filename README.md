@@ -41,6 +41,7 @@ The project page can be found [here](https://pypi.org/project/igelfs/).
 - [pillow](https://pypi.org/project/pillow/) - bootsplash images
 - [python-magic](https://pypi.org/project/python-magic/) - payload identification
 - [cryptography](https://pypi.org/project/cryptography/) - encryption (optional)
+- [pycryptodome](https://pypi.org/project/pycryptodome/) - encryption (optional)
 - [PyNaCl](https://pypi.org/project/PyNaCl/) - encryption, bindings to [libsodium](https://github.com/jedisct1/libsodium) (optional)
 - [python-lzf](https://pypi.org/project/python-lzf/) - compression, bindings to liblzf (optional)
 - [fuse-python](https://pypi.org/project/fuse-python/) - FUSE filesystem (optional)
