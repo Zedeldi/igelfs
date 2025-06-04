@@ -11,6 +11,7 @@ from igelfs.filesystem import Filesystem
 from igelfs.lxos import FirmwareUpdate, LXOSParser
 from igelfs.models import Section
 from igelfs.registry import Registry
+from igelfs.reset import FactoryReset
 
 try:
     from igelfs.convert import Disk
@@ -129,6 +130,7 @@ def get_parser() -> ArgumentParser:
     parser_extract.add_argument(
         "directory", help="destination directory for extraction"
     )
+    subparsers.add_parser("reset", help="get factory reset key")
     parser_convert = subparsers.add_parser(
         "convert", help="convert filesystem to GPT partitioned disk"
     )
@@ -149,11 +151,13 @@ def get_parser() -> ArgumentParser:
 
 def check_args(args: Namespace) -> None:
     """Check sanity of parsed arguments."""
-    if (args.command in ("keys", "registry") and not _KEYRING_AVAILABLE) or (
+    # Check optional dependencies are installed for specific features
+    if (args.command in ("keys", "registry", "reset") and not _KEYRING_AVAILABLE) or (
         args.command == "convert" and not _CONVERT_AVAILABLE
     ):
         print(f"Command '{args.command}' is not available.")
         sys.exit(1)
+    # Check arguments
     if args.command == "registry" and args.decrypt and not args.key:
         print("Key must be set when decrypting registry value")
         sys.exit(1)
@@ -260,6 +264,10 @@ def main() -> None:
                 partition_minors=partition_minors,
                 lxos_config=lxos_config,
             )
+        case "reset":
+            factory_reset = FactoryReset.from_filesystem(filesystem)
+            reset_key = factory_reset.get_reset_key()
+            print(reset_key)
         case "convert":
             Disk.from_filesystem(args.output, filesystem, lxos_config)
         case "info":

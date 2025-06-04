@@ -14,7 +14,9 @@ encryption with cryptsetup (LUKS or plain-mode).
 
 import base64
 import hashlib
+from collections.abc import Collection
 
+from Crypto.Cipher import DES
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
@@ -74,6 +76,16 @@ class CryptoHelper:
         iv = iv or key[32:]  # last 32 bytes of key, assuming key is 64 bytes
         cipher = Cipher(AES(key), mode=XTS(iv[:16]), backend=default_backend())
         return cipher.decryptor().update(data)
+
+    @staticmethod
+    def triple_des_cbc_encrypt(
+        data: bytes, keys: Collection[bytes], ivs: Collection[bytes | None]
+    ) -> bytes:
+        """Encrypt data with specified keys and IVs, using Triple DES in CBC mode."""
+        if len(keys) != 3 or len(ivs) != 3:
+            raise ValueError("Three keys and IVs required for 3DES")
+        ciphers = [DES.new(key, mode=DES.MODE_CBC, iv=iv) for key, iv in zip(keys, ivs)]
+        return ciphers[2].encrypt(ciphers[1].decrypt(ciphers[0].encrypt(data)))
 
     @staticmethod
     def get_extent_key(
