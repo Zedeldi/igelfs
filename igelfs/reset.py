@@ -31,9 +31,15 @@ Based on https://github.com/thomasDOTwtf/free_stacheltier.
 
 import sys
 
-from igelfs.crypto import CryptoHelper
 from igelfs.filesystem import Filesystem
 from igelfs.wfs import WfsPartition
+
+try:
+    from igelfs.crypto import CryptoHelper
+except ImportError:
+    _CRYPTO_AVAILABLE = False
+else:
+    _CRYPTO_AVAILABLE = True
 
 
 class FactoryReset:
@@ -60,6 +66,8 @@ class FactoryReset:
 
     def get_reset_key(self) -> str:
         """Return 'reset to defaults key' from 'terminal key' challenge."""
+        if not _CRYPTO_AVAILABLE:
+            raise ImportError("Cryptographic functionality is not available")
         terminal_key = self.key_to_bytes(self.terminal_key)
         reset_key = CryptoHelper.triple_des_cbc_encrypt(
             terminal_key, keys=self.KEYS, ivs=self.IVS
