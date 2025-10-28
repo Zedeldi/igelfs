@@ -1,5 +1,7 @@
 """Module to assist converting IGEL Filesystem to other formats."""
 
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
@@ -80,11 +82,11 @@ class Disk:
 
     @classmethod
     def from_filesystem(
-        cls: type["Disk"],
+        cls: type[Disk],
         path: str | os.PathLike,
         filesystem: Filesystem,
         lxos_config: LXOSParser | None = None,
-    ) -> "Disk":
+    ) -> Disk:
         """Convert filesystem to disk image and return Disk."""
         disk = cls(path)
         if not disk.path.exists():

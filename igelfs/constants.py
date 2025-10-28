@@ -1,5 +1,7 @@
 """Python implementation of igelsdk.h sourced from igel-flash-driver."""
 
+from __future__ import annotations
+
 import math
 from enum import IntEnum, IntFlag
 
@@ -18,7 +20,7 @@ class SectionSize(IntEnum):
     SECT_SIZE_16M = 8
 
     @classmethod
-    def get(cls: type["SectionSize"], size: int) -> "SectionSize":
+    def get(cls: type[SectionSize], size: int) -> SectionSize:
         """Get SectionSize for specified size."""
         section_size = int(math.log2(size / 65536))
         return cls(section_size)

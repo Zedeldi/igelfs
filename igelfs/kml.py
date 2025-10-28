@@ -1,5 +1,7 @@
 """Data models for key configuration."""
 
+from __future__ import annotations
+
 import base64
 import io
 import json
@@ -40,7 +42,7 @@ class KmlConfig(dict):
         return {name: self.get_key(name, master_key) for name in self["keys"].keys()}
 
     @classmethod
-    def from_bytes(cls: type["KmlConfig"], data: bytes) -> "KmlConfig":
+    def from_bytes(cls: type[KmlConfig], data: bytes) -> KmlConfig:
         """Return KmlConfig instance from JSON data as bytes."""
         with io.BytesIO(data) as file:
             return KmlConfig(json.load(file))
@@ -91,7 +93,7 @@ class Keyring:
         return None
 
     @classmethod
-    def from_filesystem(cls: type["Keyring"], filesystem: Filesystem) -> "Keyring":
+    def from_filesystem(cls: type[Keyring], filesystem: Filesystem) -> Keyring:
         """Return keyring from filesystem."""
         boot_id = filesystem.boot_registry.get_boot_id()
         extent_key = CryptoHelper.get_extent_key(boot_id)

@@ -1,5 +1,7 @@
 """Data models for hash data of a partition."""
 
+from __future__ import annotations
+
 import hashlib
 from dataclasses import dataclass, field
 
@@ -62,7 +64,7 @@ class HashExclude(BaseDataModel):
 
     @staticmethod
     def get_excluded_indices_from_collection(
-        excludes: DataModelCollection["HashExclude"],
+        excludes: DataModelCollection[HashExclude],
     ) -> list[int]:
         """Return list of excluded indices for all hash excludes."""
         indices = []

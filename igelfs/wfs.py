@@ -1,5 +1,7 @@
 """Module to handle WFS partition of the filesystem."""
 
+from __future__ import annotations
+
 import contextlib
 from collections.abc import Generator
 from pathlib import Path
@@ -24,7 +26,7 @@ class WfsPartition(BaseContext):
 
     @classmethod
     @contextlib.contextmanager
-    def context(cls: type["WfsPartition"], filesystem: Filesystem) -> Generator[Path]:
+    def context(cls: type[WfsPartition], filesystem: Filesystem) -> Generator[Path]:
         """Context manager to mount WFS partition from filesystem, then unmount on closing."""
         if not _KEYRING_AVAILABLE:
             raise ImportError("Keyring functionality is not available")

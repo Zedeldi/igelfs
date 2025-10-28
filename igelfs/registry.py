@@ -1,5 +1,7 @@
 """Module to access and parse IGEL OS registry."""
 
+from __future__ import annotations
+
 import gzip
 import re
 from collections.abc import Iterable
@@ -18,7 +20,7 @@ class XmlHelper:
     """Helper class for generic XML methods."""
 
     @classmethod
-    def to_dict(cls: type["XmlHelper"], element: ElementTree.Element) -> ElementDict:
+    def to_dict(cls: type[XmlHelper], element: ElementTree.Element) -> ElementDict:
         """Return dictionary of children for element."""
         return {
             child: (
@@ -31,7 +33,7 @@ class XmlHelper:
 
     @classmethod
     def keys(
-        cls: type["XmlHelper"],
+        cls: type[XmlHelper],
         element: ElementTree.Element,
         separator: str = ".",
         prefix: list[str] | None = None,
@@ -53,7 +55,7 @@ class XmlHelper:
 
     @classmethod
     def convert_elements_to_strings(
-        cls: type["XmlHelper"], elements: ElementDict
+        cls: type[XmlHelper], elements: ElementDict
     ) -> RecursiveDict[str, ElementText]:
         """Convert dictionary of elements to strings."""
         return {
@@ -67,7 +69,7 @@ class XmlHelper:
 
     @classmethod
     def convert_xml_types(
-        cls: type["XmlHelper"], elements: RecursiveDict[str, ElementText]
+        cls: type[XmlHelper], elements: RecursiveDict[str, ElementText]
     ) -> RecursiveDict[str, Primitive]:
         """Convert strings in dictionary to Python types."""
         return {
@@ -212,7 +214,7 @@ class Registry:
         return "".join(plaintext)
 
     @classmethod
-    def from_filesystem(cls: type["Registry"], filesystem: Filesystem) -> "Registry":
+    def from_filesystem(cls: type[Registry], filesystem: Filesystem) -> Registry:
         """Return Registry instance from filesystem."""
         with WfsPartition(filesystem) as mountpoint:
             if (path := (mountpoint / cls.GROUP_FILENAME)).exists():

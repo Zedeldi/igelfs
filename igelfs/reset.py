@@ -29,6 +29,8 @@ each value is less than or equal to 65535 (0xFFFF):
 Based on https://github.com/thomasDOTwtf/free_stacheltier.
 """
 
+from __future__ import annotations
+
 import sys
 
 from igelfs.filesystem import Filesystem
@@ -75,13 +77,13 @@ class FactoryReset:
         return self.bytes_to_key(reset_key)
 
     @classmethod
-    def validate_key(cls: type["FactoryReset"], key: str) -> bool:
+    def validate_key(cls: type[FactoryReset], key: str) -> bool:
         """Return whether key is valid."""
         parts = key.split(cls.KEY_SEPARATOR)
         return len(parts) == 4 and all(int(part) <= 0xFFFF for part in parts)
 
     @classmethod
-    def key_to_bytes(cls: type["FactoryReset"], key: str) -> bytes:
+    def key_to_bytes(cls: type[FactoryReset], key: str) -> bytes:
         """Return bytes from key string."""
         return b"".join(
             int(part).to_bytes(2, byteorder="little")
@@ -89,7 +91,7 @@ class FactoryReset:
         )
 
     @classmethod
-    def bytes_to_key(cls: type["FactoryReset"], key: bytes) -> str:
+    def bytes_to_key(cls: type[FactoryReset], key: bytes) -> str:
         """Return key string from bytes."""
         return cls.KEY_SEPARATOR.join(
             map(
@@ -103,8 +105,8 @@ class FactoryReset:
 
     @classmethod
     def from_filesystem(
-        cls: type["FactoryReset"], filesystem: Filesystem
-    ) -> "FactoryReset":
+        cls: type[FactoryReset], filesystem: Filesystem
+    ) -> FactoryReset:
         """Return FactoryReset instance from filesystem."""
         with WfsPartition(filesystem) as mountpoint:
             try:

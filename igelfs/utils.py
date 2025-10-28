@@ -1,5 +1,7 @@
 """Collection of functions to assist other modules."""
 
+from __future__ import annotations
+
 import abc
 import contextlib
 import io
@@ -143,6 +145,6 @@ class BaseContext(contextlib.AbstractContextManager):
     @classmethod
     @contextlib.contextmanager
     @abc.abstractmethod
-    def context(cls: type["BaseContext"], *args, **kwargs) -> Generator[Any]:
+    def context(cls: type[BaseContext], *args, **kwargs) -> Generator[Any]:
         """Abstract class method allowing helper classes to be used as context managers."""
         ...

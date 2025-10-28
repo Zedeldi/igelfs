@@ -10,6 +10,8 @@ or removing the mapped/mounted device on exiting the context. Alternatively,
 they can be used as standalone helper classes with static methods.
 """
 
+from __future__ import annotations
+
 import contextlib
 import logging
 import os
@@ -80,7 +82,7 @@ class Cryptsetup(BaseContext):
 
     @classmethod
     def open(
-        cls: type["Cryptsetup"],
+        cls: type[Cryptsetup],
         path: str | os.PathLike,
         name: str,
         keyfile: str | os.PathLike,
@@ -99,7 +101,7 @@ class Cryptsetup(BaseContext):
     @classmethod
     @contextlib.contextmanager
     def context(
-        cls: type["Cryptsetup"],
+        cls: type[Cryptsetup],
         path: str | os.PathLike,
         keyfile: str | os.PathLike,
         name: str | None = None,
@@ -114,7 +116,7 @@ class Cryptsetup(BaseContext):
 
     @classmethod
     def decrypt(
-        cls: type["Cryptsetup"],
+        cls: type[Cryptsetup],
         path: str | os.PathLike,
         keyfile: str | os.PathLike,
     ) -> bytes:
@@ -141,7 +143,7 @@ class Losetup(BaseContext):
 
     @classmethod
     @contextlib.contextmanager
-    def context(cls: type["Losetup"], path: str | os.PathLike) -> Generator[str]:
+    def context(cls: type[Losetup], path: str | os.PathLike) -> Generator[str]:
         """Context manager to attach path as loop device, then detach on closing."""
         loop_device = cls.attach(path)
         try:
@@ -168,7 +170,7 @@ class Mount(BaseContext):
     @classmethod
     @contextlib.contextmanager
     def context(
-        cls: type["Mount"],
+        cls: type[Mount],
         path: str | os.PathLike,
         mountpoint: str | os.PathLike | None = None,
     ) -> Generator[str | os.PathLike]:

@@ -1,5 +1,7 @@
 """Data models for bootsplash structures."""
 
+from __future__ import annotations
+
 import io
 from dataclasses import dataclass, field
 
@@ -47,7 +49,7 @@ class BootsplashExtent(BaseDataGroup):
     data: bytes
 
     @classmethod
-    def from_bytes(cls: type["BootsplashExtent"], data: bytes) -> "BootsplashExtent":
+    def from_bytes(cls: type[BootsplashExtent], data: bytes) -> BootsplashExtent:
         """Return bootsplash extent model from bytes."""
         header, data = BootsplashHeader.from_bytes_with_remaining(data)
         splashes: DataModelCollection[Bootsplash] = DataModelCollection()

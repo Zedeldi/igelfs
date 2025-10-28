@@ -1,5 +1,7 @@
 """Data models for extent filesystem structures."""
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import os
@@ -87,7 +89,7 @@ class ExtentFilesystem(BaseDataModel):
         )
 
     @classmethod
-    def decompress(cls: type["ExtentFilesystem"], data: bytes) -> bytes | None:
+    def decompress(cls: type[ExtentFilesystem], data: bytes) -> bytes | None:
         """Return LZF-decompressed data or None if too large."""
         if not _LZF_AVAILABLE:
             raise ImportError("lzf functionality is not available")

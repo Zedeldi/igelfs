@@ -12,6 +12,8 @@ Once keys have been decrypted with the master key, they can be used for disk
 encryption with cryptsetup (LUKS or plain-mode).
 """
 
+from __future__ import annotations
+
 import base64
 import hashlib
 from collections.abc import Collection
@@ -123,7 +125,7 @@ class CryptoHelper:
 
     @classmethod
     def _get_master_key(
-        cls: type["CryptoHelper"],
+        cls: type[CryptoHelper],
         password: bytes,
         salt: bytes,
         pub: bytes,
@@ -147,7 +149,7 @@ class CryptoHelper:
 
     @classmethod
     def get_master_key(
-        cls: type["CryptoHelper"],
+        cls: type[CryptoHelper],
         extent_key: bytes,
         salt: bytes,
         pub: bytes,
@@ -174,7 +176,7 @@ class CryptoHelper:
 
     @classmethod
     def get_default_key(
-        cls: type["CryptoHelper"],
+        cls: type[CryptoHelper],
         salt: bytes,
         pub: bytes,
         priv: bytes,

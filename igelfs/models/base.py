@@ -1,10 +1,12 @@
 """Concrete base classes for various data models."""
 
+from __future__ import annotations
+
 import io
 import logging
 from collections.abc import Iterator, Mapping
 from dataclasses import Field, dataclass
-from typing import Any, get_args, get_origin
+from typing import Any, get_args, get_origin, get_type_hints
 
 from igelfs.models.abc import BaseBytesModel
 from igelfs.models.collections import DataModelCollection
@@ -65,32 +67,32 @@ class BaseDataModel[T: BaseDataModel](BaseBytesModel, DataclassMixin):
 
     @classmethod
     def _get_attribute_metadata(
-        cls: type["BaseDataModel"],
+        cls: type[BaseDataModel],
     ) -> dict[str, Mapping[str, Any]]:
         """Return dictionary of attribute metadata."""
         return {field.name: field.metadata for field in cls.get_fields(init_only=True)}
 
     @classmethod
     def _get_attribute_metadata_by_name(
-        cls: type["BaseDataModel"], name: str
+        cls: type[BaseDataModel], name: str
     ) -> Mapping[str, Any]:
         """Return metadata for specified attribute."""
         return cls._get_attribute_metadata()[name]
 
     @classmethod
-    def get_model_size(cls: type["BaseDataModel"]) -> int:
+    def get_model_size(cls: type[BaseDataModel]) -> int:
         """Return expected total size of data for model."""
         return sum(
             metadata["size"] for metadata in cls._get_attribute_metadata().values()
         )
 
     @classmethod
-    def get_attribute_size(cls: type["BaseDataModel"], name: str) -> int:
+    def get_attribute_size(cls: type[BaseDataModel], name: str) -> int:
         """Return size of data for attribute."""
         return cls._get_attribute_metadata_by_name(name)["size"]
 
     @classmethod
-    def get_attribute_offset(cls: type["BaseDataModel"], name: str) -> int:
+    def get_attribute_offset(cls: type[BaseDataModel], name: str) -> int:
         """Return offset of bytes for attribute."""
         offset = 0
         for attribute, metadata in cls._get_attribute_metadata().items():
@@ -111,7 +113,7 @@ class BaseDataModel[T: BaseDataModel](BaseBytesModel, DataclassMixin):
 
     @classmethod
     def from_bytes_to_dict(
-        cls: type["BaseDataModel"], data: bytes, strict: bool = False
+        cls: type[BaseDataModel], data: bytes, strict: bool = False
     ) -> dict[str, bytes]:
         """
         Return dictionary from bytes.
@@ -135,13 +137,16 @@ class BaseDataModel[T: BaseDataModel](BaseBytesModel, DataclassMixin):
                 model[field.name] = data
         return model
 
-    @staticmethod
-    def from_field(data: bytes, field: Field) -> Any:
+    @classmethod
+    def from_field(cls: type[T], data: bytes, field: Field) -> Any:
         """Return instance of field type from data."""
+        # Support lazy evaluation of annotations
         if isinstance(field.type, str):
-            raise TypeError(f"Type of field '{field.type}' must be a class")
-        if get_origin(field.type) == DataModelCollection:
-            inner = get_args(field.type)[0]
+            field_type = get_type_hints(cls)[field.name]
+        else:
+            field_type = field.type
+        if get_origin(field_type) == DataModelCollection:
+            inner = get_args(field_type)[0]
             return DataModelCollection(
                 inner.from_bytes(chunk)
                 for chunk in [
@@ -149,14 +154,14 @@ class BaseDataModel[T: BaseDataModel](BaseBytesModel, DataclassMixin):
                     for i in range(0, len(data), inner.get_model_size())
                 ]
             )
-        elif issubclass(field.type, BaseDataModel):
-            return field.type.from_bytes(data)
-        elif field.type == str:
+        elif issubclass(field_type, BaseDataModel):
+            return field_type.from_bytes(data)
+        elif field_type == str:
             return data.decode()
-        elif field.type == int:
+        elif field_type == int:
             return int.from_bytes(data, byteorder="little")
         else:
-            return field.type(data)
+            return field_type(data)
 
     @classmethod
     def from_bytes(cls: type[T], data: bytes) -> T:
@@ -191,7 +196,7 @@ class BaseDataModel[T: BaseDataModel](BaseBytesModel, DataclassMixin):
         return DataModelCollection(cls.from_bytes_to_generator(data, limit=limit))
 
     @classmethod
-    def _get_default_bytes(cls: type["BaseDataModel"]) -> bytes:
+    def _get_default_bytes(cls: type[BaseDataModel]) -> bytes:
         """Return default bytes for new data model."""
         data = bytes(cls.get_model_size())
         for name, metadata in cls._get_attribute_metadata().items():

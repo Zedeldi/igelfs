@@ -1,5 +1,7 @@
 """Data models for the boot registry of a filesystem image."""
 
+from __future__ import annotations
+
 from abc import abstractmethod
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
@@ -62,7 +64,7 @@ class BootRegistryEntry(BaseDataModel):
 
     @classmethod
     def get_flag_from_values(
-        cls: type["BootRegistryEntry"],
+        cls: type[BootRegistryEntry],
         next_block_index: int,
         next_block_present: bool,
         key_length: int,
@@ -289,7 +291,7 @@ class BootRegistryHeaderLegacy(BaseBootRegistryHeader):
 
     @classmethod
     def _convert_entries_from_dict_to_bytes(
-        cls: type["BootRegistryHeaderLegacy"], entries: dict[str, str], pad: bool = True
+        cls: type[BootRegistryHeaderLegacy], entries: dict[str, str], pad: bool = True
     ) -> bytes:
         """Convert dictionary of entries to bytes."""
         content = "\n".join(f"{key}={value}" for key, value in entries.items())
@@ -338,7 +340,7 @@ class BootRegistryHeaderFactory:
 
     @classmethod
     def from_bytes(
-        cls: type["BootRegistryHeaderFactory"], data: bytes
+        cls: type[BootRegistryHeaderFactory], data: bytes
     ) -> BootRegistryHeader | BootRegistryHeaderLegacy:
         """Return appropriate boot registry header model from bytes."""
         if cls.is_legacy_boot_registry(data):

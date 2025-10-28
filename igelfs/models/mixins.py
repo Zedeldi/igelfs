@@ -1,5 +1,7 @@
 """Mixin classes to extend functionality for various data models."""
 
+from __future__ import annotations
+
 import zlib
 from collections.abc import Iterator
 from dataclasses import Field, asdict, dataclass, fields
@@ -70,7 +72,7 @@ class DataclassMixin:
 
     @classmethod
     def get_field_by_name(
-        cls: type["DataclassMixin"], name: str, *args, **kwargs
+        cls: type[DataclassMixin], name: str, *args, **kwargs
     ) -> Field:
         """Return field for dataclass by name."""
         for field in cls.get_fields(*args, **kwargs):

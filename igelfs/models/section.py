@@ -1,5 +1,7 @@
 """Data models for a section."""
 
+from __future__ import annotations
+
 import copy
 import io
 from dataclasses import dataclass, field
@@ -239,12 +241,12 @@ class Section(BaseDataModel, CRCMixin):
 
     @classmethod
     def set_payload_of(
-        cls: type["Section"],
-        sections: DataModelCollection["Section"],
+        cls: type[Section],
+        sections: DataModelCollection[Section],
         payload: bytes,
         preserve_extents: bool = True,
         zero: bool = True,
-    ) -> DataModelCollection["Section"]:
+    ) -> DataModelCollection[Section]:
         """
         Set payload for collection of sections to bytes in payload.
 
@@ -281,7 +283,7 @@ class Section(BaseDataModel, CRCMixin):
 
     @staticmethod
     def get_payload_of(
-        sections: DataModelCollection["Section"], include_extents: bool = False
+        sections: DataModelCollection[Section], include_extents: bool = False
     ) -> bytes:
         """Return bytes for all sections, excluding headers."""
         data = b"".join(section.data for section in sections)
@@ -291,8 +293,8 @@ class Section(BaseDataModel, CRCMixin):
 
     @classmethod
     def get_extent_of(
-        cls: type["Section"],
-        sections: DataModelCollection["Section"],
+        cls: type[Section],
+        sections: DataModelCollection[Section],
         extent: PartitionExtent,
     ) -> bytes:
         """Return bytes for extent of sections."""
@@ -306,7 +308,7 @@ class Section(BaseDataModel, CRCMixin):
 
     @classmethod
     def get_info_of(
-        cls: type["Section"], sections: DataModelCollection["Section"]
+        cls: type[Section], sections: DataModelCollection[Section]
     ) -> dict[str, Any]:
         """Return information for a collection of sections."""
         partition = sections[0].partition

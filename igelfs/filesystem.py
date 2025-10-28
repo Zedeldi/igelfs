@@ -1,5 +1,7 @@
 """Python implementation to handle IGEL filesystems."""
 
+from __future__ import annotations
+
 import copy
 import itertools
 import logging
@@ -139,9 +141,7 @@ class Filesystem:
         return Directory.from_bytes(data)
 
     @classmethod
-    def new(
-        cls: type["Filesystem"], path: str | os.PathLike, size: int
-    ) -> "Filesystem":
+    def new(cls: type[Filesystem], path: str | os.PathLike, size: int) -> Filesystem:
         """Create new IGEL filesystem at path of size in sections and return instance."""
         boot_registry = BootRegistryHeader.new()
         directory = Directory.new()
@@ -390,14 +390,14 @@ class Filesystem:
 
     @classmethod
     def create_partition_from_file(
-        cls: type["Filesystem"], path: str | os.PathLike, *args, **kwargs
+        cls: type[Filesystem], path: str | os.PathLike, *args, **kwargs
     ) -> DataModelCollection[Section]:
         """Create partition from file and return collection of sections."""
         with open(path, "rb") as fd:
             data = fd.read()
         return cls.create_partition_from_bytes(data, *args, **kwargs)
 
-    def rebuild(self, path: str | os.PathLike) -> "Filesystem":
+    def rebuild(self, path: str | os.PathLike) -> Filesystem:
         """Rebuild filesystem to new image at path and return new instance."""
         filesystem = self.new(path, self.section_count - 1)
         filesystem.write_boot_registry(self.boot_registry)
